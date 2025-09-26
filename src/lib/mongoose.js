@@ -1,22 +1,23 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!MONGODB_URI) {
-  throw new Error("Missing MONGODB_URI in environment variables");
+let cached = global._mongooseCache;
+if (!cached) {
+  cached = global._mongooseCache = { conn: null, promise: null };
 }
 
-let cached = global._mongoose;
-if (!cached) cached = global._mongoose = { conn: null, promise: null };
-
 export default async function dbConnect() {
+  const uri = process.env.MONGODB_URI;
+  const dbName = process.env.MONGODB_DBNAME;
+
+  // ✅ เช็ค env ตอน "เรียกใช้" เท่านั้น (ไม่เช็คตอน import)
+  if (!uri) {
+    throw new Error("Missing MONGODB_URI in environment variables");
+  }
+
   if (cached.conn) return cached.conn;
   if (!cached.promise) {
-    cached.promise = mongoose
-      .connect(MONGODB_URI, {
-        dbName: process.env.MONGODB_DBNAME || "nine_expert",
-      })
-      .then((m) => m);
+    const opts = dbName ? { dbName } : {};
+    cached.promise = mongoose.connect(uri, opts).then((m) => m.connection);
   }
   cached.conn = await cached.promise;
   return cached.conn;
