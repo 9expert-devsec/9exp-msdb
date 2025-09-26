@@ -1,23 +1,34 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@layer base {
+  :root { color-scheme: dark; }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* สีตัวอักษรพื้นฐานของ select */
+  select {
+    color-scheme: dark;           /* กันบางเบราว์เซอร์ไม่อ่านจาก :root */
+    color: #e5e7eb;               /* text-slate-200 */
+    background-color: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: .75rem;
   }
+
+  /* หลายเบราว์เซอร์ (เช่น Firefox) จะยอมให้สไตล์ option ได้ */
+  select option {
+    color: #e5e7eb;               /* ทำตัวที่ยังไม่ถูกเลือกให้สีเดียวกับที่เลือก */
+    background: #0f172a;          /* bg-slate-900 */
+  }
+
+  /* สีตอน hover/selected (ที่รองรับ) */
+  select option:checked,
+  select option:hover {
+    color: #ffffff;
+    background: #1f2937;          /* bg-slate-800 */
+  }
+
+  /* กันบางธีมที่ฉีด opacity ให้ option */
+  select option[disabled] { color: #94a3b8; } /* ให้จางเฉพาะ disabled จริง ๆ */
 }
+
 
 body {
   background: var(--background);
