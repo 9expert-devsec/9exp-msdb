@@ -14,19 +14,27 @@ const DEFAULT = {
   o_course_name: "",
   o_course_teaser: "",
   o_number_lessons: 0,
-  o_traininghours: 0,
+  o_course_traininghours: 0,
   o_course_price: 0,
   o_course_netprice: null,
   o_course_cover_url: "",
   o_course_levels: "1",
-  o_workshop_status: false,
-  o_certificate_status: false,
-  o_coursepromote_status: false,
+  o_course_workshop_status: false,
+  o_course_certificate_status: false,
+  o_course_promote_status: false,
   o_course_objectives: "",
   o_course_target_audience: "",
   o_course_prerequisites: "",
   o_course_system_requirements: "",
   o_course_training_topics: "",
+
+  // new: multi-URL fields (1 บรรทัด = 1 URL)
+  o_course_doc_paths: "",
+  o_course_lab_paths: "",
+  o_course_case_study_paths: "",
+
+  sort_order: 0,
+
   program: "",
   skills: [],
 };
@@ -51,33 +59,26 @@ const Section = ({ title, desc, children }) => (
 
 const BulletHint = ({ title }) => (
   <div className="text-xs text-slate-400">
-    • {title}: <b>1 บรรทัด = 1 bullet</b> (กด Enter เพื่อขึ้นบรรทัดใหม่)
+    • {title}: <b>1 บรรทัด = 1 รายการ</b> (กด Enter เพื่อขึ้นบรรทัดใหม่)
   </div>
 );
 
-/* ---------- main ---------- */
-export default function OnlineCourseForm({ item = {}, onSaved }) {
-  const [programs, setPrograms] = useState([]);
-  const [skills, setSkills] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-
-  const [form, setForm] = useState(DEFAULT);
-
-  const set = (k, v) => setForm((s) => ({ ...s, [k]: v }));
-  const parseLines = (text) =>
-    (text || "")
+const useLinesCounter = (form) => {
+  const parse = (t) =>
+    (t || "")
       .split("\n")
-      .map((t) => t.trim())
+      .map((s) => s.trim())
       .filter(Boolean);
-
-  const countBullets = useMemo(
+  return useMemo(
     () => ({
-      obj: parseLines(form.o_course_objectives).length,
-      aud: parseLines(form.o_course_target_audience).length,
-      pre: parseLines(form.o_course_prerequisites).length,
-      sys: parseLines(form.o_course_system_requirements).length,
-      top: parseLines(form.o_course_training_topics).length,
+      obj: parse(form.o_course_objectives).length,
+      aud: parse(form.o_course_target_audience).length,
+      pre: parse(form.o_course_prerequisites).length,
+      sys: parse(form.o_course_system_requirements).length,
+      top: parse(form.o_course_training_topics).length,
+      doc: parse(form.o_course_doc_paths).length,
+      lab: parse(form.o_course_lab_paths).length,
+      cs: parse(form.o_course_case_study_paths).length,
     }),
     [
       form.o_course_objectives,
@@ -85,8 +86,31 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
       form.o_course_prerequisites,
       form.o_course_system_requirements,
       form.o_course_training_topics,
+      form.o_course_doc_paths,
+      form.o_course_lab_paths,
+      form.o_course_case_study_paths,
     ]
   );
+};
+
+/* ---------- main ---------- */
+export default function OnlineCourseForm({ item = {}, onSaved }) {
+  const [programs, setPrograms] = useState([]);
+  const [skills, setSkills] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [lightbox, setLightbox] = useState("");
+
+  const [form, setForm] = useState(DEFAULT);
+  const set = (k, v) => setForm((s) => ({ ...s, [k]: v }));
+
+  const parseLines = (text) =>
+    (text || "")
+      .split("\n")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+  const counts = useLinesCounter(form);
 
   /* ---------- load options ---------- */
   useEffect(() => {
@@ -104,19 +128,30 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
   useEffect(() => {
     const toText = (arr) =>
       Array.isArray(arr) && arr.length ? arr.join("\n") : "";
+
     setForm({
       ...DEFAULT,
       ...item,
-      o_course_levels: item.o_course_levels || "1",
+
+      // normalize text-fields (array -> textarea)
       o_course_objectives: toText(item.o_course_objectives),
       o_course_target_audience: toText(item.o_course_target_audience),
       o_course_prerequisites: toText(item.o_course_prerequisites),
       o_course_system_requirements: toText(item.o_course_system_requirements),
       o_course_training_topics: toText(item.o_course_training_topics),
+
+      // new url-list fields
+      o_course_doc_paths: toText(item.o_course_doc_paths),
+      o_course_lab_paths: toText(item.o_course_lab_paths),
+      o_course_case_study_paths: toText(item.o_course_case_study_paths),
+
       program: item?.program?._id || item?.program || "",
       skills: Array.isArray(item?.skills)
         ? item.skills.map((s) => s._id || s)
         : [],
+
+      o_course_levels: item.o_course_levels || "1",
+      sort_order: item.sort_order ?? 0,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item]);
@@ -128,7 +163,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("folder", "courses/covers");
+      fd.append("folder", "online/covers"); // แยกโฟลเดอร์จาก public
       const res = await fetch("/api/uploads", { method: "POST", body: fd });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -147,13 +182,18 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
     try {
       const payload = {
         ...form,
+
+        // numeric
         o_number_lessons: +form.o_number_lessons || 0,
-        o_traininghours: +form.o_traininghours || 0,
+        o_course_traininghours: +form.o_course_traininghours || 0,
         o_course_price: form.o_course_price === "" ? 0 : +form.o_course_price,
         o_course_netprice:
           form.o_course_netprice === "" || form.o_course_netprice == null
             ? null
             : +form.o_course_netprice,
+        sort_order: +form.sort_order || 0,
+
+        // arrays
         o_course_objectives: parseLines(form.o_course_objectives),
         o_course_target_audience: parseLines(form.o_course_target_audience),
         o_course_prerequisites: parseLines(form.o_course_prerequisites),
@@ -161,12 +201,19 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
           form.o_course_system_requirements
         ),
         o_course_training_topics: parseLines(form.o_course_training_topics),
+
+        // url lists
+        o_course_doc_paths: parseLines(form.o_course_doc_paths),
+        o_course_lab_paths: parseLines(form.o_course_lab_paths),
+        o_course_case_study_paths: parseLines(form.o_course_case_study_paths),
       };
+
       const method = item && item._id ? "PATCH" : "POST";
       const url =
         item && item._id
           ? `/api/online-courses/${item._id}`
           : `/api/online-courses`;
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -194,7 +241,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
             <FieldLabel>Course ID</FieldLabel>
             <input
               className="input"
-              placeholder="เช่น PBI-ANL-101"
+              placeholder="เช่น PBI-OL-01"
               value={form.o_course_id}
               onChange={(e) => set("o_course_id", e.target.value)}
             />
@@ -203,7 +250,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
             <FieldLabel>Course Name</FieldLabel>
             <input
               className="input"
-              placeholder="เช่น Power BI Analytics Fundamentals"
+              placeholder="เช่น Power BI Desktop for Business Analytics (Online)"
               value={form.o_course_name}
               onChange={(e) => set("o_course_name", e.target.value)}
             />
@@ -220,8 +267,8 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
         </div>
       </Section>
 
-      {/* Cover & Lessons & Hours & Level & Price */}
-      <Section title="สื่อ & บทเรียน & เวลาเรียน & ระดับ & ราคา">
+      {/* Media, Schedule, Level, Price, Sort */}
+      <Section title="สื่อ & เวลาเรียน & ระดับ & ราคา & ลำดับ">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {/* Cover */}
           <div>
@@ -243,7 +290,9 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
                   <img
                     src={form.o_course_cover_url}
                     alt="cover"
-                    className="h-12 w-20 rounded-md object-cover ring-1 ring-white/15"
+                    className="h-12 w-20 rounded-md object-cover ring-1 ring-white/15 cursor-zoom-in"
+                    title="คลิกเพื่อดูภาพใหญ่"
+                    onClick={() => setLightbox(form.o_course_cover_url)}
                   />
                   <button
                     type="button"
@@ -264,8 +313,8 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
             </div>
           </div>
 
-          {/* Lessons/Hours/Level/Price */}
           <div className="grid grid-cols-3 gap-2">
+            {/* Lessons */}
             <div>
               <FieldLabel>Lessons</FieldLabel>
               <div className="flex items-center gap-2">
@@ -298,6 +347,8 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
                 </button>
               </div>
             </div>
+
+            {/* Hours */}
             <div>
               <FieldLabel>Hours</FieldLabel>
               <div className="flex items-center gap-2">
@@ -305,8 +356,8 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
                   type="button"
                   onClick={() =>
                     set(
-                      "o_traininghours",
-                      Math.max(0, (+form.o_traininghours || 0) - 1)
+                      "o_course_traininghours",
+                      Math.max(0, (+form.o_course_traininghours || 0) - 1)
                     )
                   }
                   className="btn-step"
@@ -316,13 +367,18 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
                 <input
                   type="number"
                   className="input text-center"
-                  value={form.o_traininghours}
-                  onChange={(e) => set("o_traininghours", e.target.value)}
+                  value={form.o_course_traininghours}
+                  onChange={(e) =>
+                    set("o_course_traininghours", e.target.value)
+                  }
                 />
                 <button
                   type="button"
                   onClick={() =>
-                    set("o_traininghours", (+form.o_traininghours || 0) + 1)
+                    set(
+                      "o_course_traininghours",
+                      (+form.o_course_traininghours || 0) + 1
+                    )
                   }
                   className="btn-step"
                 >
@@ -330,6 +386,8 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
                 </button>
               </div>
             </div>
+
+            {/* Level */}
             <div>
               <FieldLabel>Level</FieldLabel>
               <select
@@ -345,6 +403,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               </select>
             </div>
 
+            {/* Price & NetPrice */}
             <div className="col-span-3">
               <FieldLabel>Price</FieldLabel>
               <input
@@ -365,36 +424,49 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
                 onChange={(e) => set("o_course_netprice", e.target.value)}
               />
             </div>
+
+            {/* Sort order */}
+            <div className="col-span-3">
+              <FieldLabel>ลำดับการแสดงผล (Sort Order)</FieldLabel>
+              <input
+                type="number"
+                className="input"
+                value={form.sort_order}
+                onChange={(e) => set("sort_order", e.target.value)}
+              />
+            </div>
           </div>
         </div>
       </Section>
 
       {/* Flags */}
-      <Section title="รูปแบบคอร์ส">
+      <Section title="รูปแบบคอร์ส (Online)">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
           <label className="chk">
             <input
               type="checkbox"
-              checked={!!form.o_workshop_status}
-              onChange={(e) => set("o_workshop_status", e.target.checked)}
+              checked={!!form.o_course_workshop_status}
+              onChange={(e) =>
+                set("o_course_workshop_status", e.target.checked)
+              }
             />{" "}
             Workshop
           </label>
           <label className="chk">
             <input
               type="checkbox"
-              checked={!!form.o_certificate_status}
-              onChange={(e) => set("o_certificate_status", e.target.checked)}
+              checked={!!form.o_course_certificate_status}
+              onChange={(e) =>
+                set("o_course_certificate_status", e.target.checked)
+              }
             />{" "}
             Certificate
           </label>
-          <label className="chk lg:col-span-4">
+          <label className="chk lg:col-span-2">
             <input
               type="checkbox"
-              checked={!!form.o_coursepromote_status}
-              onChange={(e) =>
-                set("o_coursepromote_status", e.target.checked)
-              }
+              checked={!!form.o_course_promote_status}
+              onChange={(e) => set("o_course_promote_status", e.target.checked)}
             />{" "}
             Promote
           </label>
@@ -409,30 +481,18 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <div>
             <FieldLabel>Program</FieldLabel>
-            <div className="flex items-center gap-2">
-              <select
-                className="input flex-1"
-                value={form.program}
-                onChange={(e) => set("program", e.target.value)}
-              >
-                <option value="">-- Select Program --</option>
-                {programs.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.program_name}
-                  </option>
-                ))}
-              </select>
-              {/* จุดสีของโปรแกรม */}
-              {(() => {
-                const p = programs.find((x) => x._id === form.program);
-                return (
-                  <span
-                    className="inline-block size-4 rounded-full ring-1 ring-white/15"
-                    style={{ background: p?.programcolor || "#64748b" }}
-                  />
-                );
-              })()}
-            </div>
+            <select
+              className="input"
+              value={form.program}
+              onChange={(e) => set("program", e.target.value)}
+            >
+              <option value="">-- Select Program --</option>
+              {programs.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.program_name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -454,7 +514,6 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
                 </option>
               ))}
             </select>
-            {/* chips */}
             <div className="mt-2 flex flex-wrap gap-2">
               {form.skills.map((id) => {
                 const s = skills.find((x) => x._id === id);
@@ -476,7 +535,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
         </div>
       </Section>
 
-      {/* Bullets */}
+      {/* Course Details (bullets) */}
       <Section
         title="รายละเอียดคอร์ส"
         desc="ใส่รายการเป็นบรรทัด ๆ ระบบจะเก็บเป็นอาเรย์และไปเรนเดอร์เป็น bullet list ให้"
@@ -485,9 +544,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
           <div>
             <FieldLabel>
               Objectives{" "}
-              <span className="text-xs text-slate-400">
-                ({countBullets.obj} ข้อ)
-              </span>
+              <span className="text-xs text-slate-400">({counts.obj} ข้อ)</span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
@@ -500,26 +557,20 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
           <div>
             <FieldLabel>
               Target Audience{" "}
-              <span className="text-xs text-slate-400">
-                ({countBullets.aud} ข้อ)
-              </span>
+              <span className="text-xs text-slate-400">({counts.aud} ข้อ)</span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="ใส่ทีละบรรทัด"
               value={form.o_course_target_audience}
-              onChange={(e) =>
-                set("o_course_target_audience", e.target.value)
-              }
+              onChange={(e) => set("o_course_target_audience", e.target.value)}
             />
             <BulletHint title="Target Audience" />
           </div>
           <div>
             <FieldLabel>
               Prerequisites{" "}
-              <span className="text-xs text-slate-400">
-                ({countBullets.pre} ข้อ)
-              </span>
+              <span className="text-xs text-slate-400">({counts.pre} ข้อ)</span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
@@ -532,9 +583,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
           <div>
             <FieldLabel>
               System Requirements{" "}
-              <span className="text-xs text-slate-400">
-                ({countBullets.sys} ข้อ)
-              </span>
+              <span className="text-xs text-slate-400">({counts.sys} ข้อ)</span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
@@ -549,9 +598,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
           <div className="lg:col-span-2">
             <FieldLabel>
               Training Topics{" "}
-              <span className="text-xs text-slate-400">
-                ({countBullets.top} ข้อ)
-              </span>
+              <span className="text-xs text-slate-400">({counts.top} ข้อ)</span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
@@ -560,6 +607,51 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               onChange={(e) => set("o_course_training_topics", e.target.value)}
             />
             <BulletHint title="Training Topics" />
+          </div>
+        </div>
+      </Section>
+
+      {/* URL Paths */}
+      <Section
+        title="ลิงก์ประกอบคอร์ส"
+        desc="ใส่ URL ต่อบรรทัด (1 บรรทัด = 1 URL)"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div>
+            <FieldLabel>
+              Doc Paths{" "}
+              <span className="text-xs text-slate-400">({counts.doc})</span>
+            </FieldLabel>
+            <textarea
+              className="textarea min-h-[120px]"
+              placeholder="https://.../doc1.pdf\nhttps://.../doc2.pdf"
+              value={form.o_course_doc_paths}
+              onChange={(e) => set("o_course_doc_paths", e.target.value)}
+            />
+          </div>
+          <div>
+            <FieldLabel>
+              Lab Paths{" "}
+              <span className="text-xs text-slate-400">({counts.lab})</span>
+            </FieldLabel>
+            <textarea
+              className="textarea min-h-[120px]"
+              placeholder="https://.../lab1.zip\nhttps://.../lab2.zip"
+              value={form.o_course_lab_paths}
+              onChange={(e) => set("o_course_lab_paths", e.target.value)}
+            />
+          </div>
+          <div>
+            <FieldLabel>
+              Case Study Paths{" "}
+              <span className="text-xs text-slate-400">({counts.cs})</span>
+            </FieldLabel>
+            <textarea
+              className="textarea min-h-[120px]"
+              placeholder="https://.../case1\nhttps://.../case2"
+              value={form.o_course_case_study_paths}
+              onChange={(e) => set("o_course_case_study_paths", e.target.value)}
+            />
           </div>
         </div>
       </Section>
@@ -574,7 +666,21 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
         </button>
       </div>
 
-      {/* local styles */}
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightbox("")}
+        >
+          <img
+            src={lightbox}
+            alt="preview"
+            className="max-h-[90vh] max-w-[95vw] rounded-xl ring-1 ring-white/10"
+          />
+        </div>
+      )}
+
+      {/* local styles (tailwind-less helpers) */}
       <style jsx>{`
         .input {
           width: 100%;
