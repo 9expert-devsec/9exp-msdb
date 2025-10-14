@@ -24,6 +24,7 @@ function ProgramBadge({ program }) {
 
 function CopyMenu({ item }) {
   const join = (a) => (Array.isArray(a) ? a.join("\n") : "");
+
   const doCopy = async (txt) => {
     try {
       await navigator.clipboard.writeText(txt || "");
@@ -39,14 +40,23 @@ function CopyMenu({ item }) {
         <summary className="cursor-pointer rounded-lg px-3 py-1 bg-white/10 hover:bg-white/20">
           Copy
         </summary>
-        <div className="absolute right-0 mt-1 w-48 rounded-xl bg-slate-800 ring-1 ring-white/10 p-1 z-10">
-          <button className="mitem" onClick={() => doCopy(item.course_cover_url)}>
+        <div className="absolute right-0 mt-1 w-56 rounded-xl bg-slate-800 ring-1 ring-white/10 p-1 z-10">
+          <button
+            className="mitem"
+            onClick={() => doCopy(item.course_cover_url)}
+          >
             Cover URL
           </button>
-          <button className="mitem" onClick={() => doCopy(join(item.course_doc_paths))}>
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.course_doc_paths))}
+          >
             Doc Paths
           </button>
-          <button className="mitem" onClick={() => doCopy(join(item.course_lab_paths))}>
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.course_lab_paths))}
+          >
             Lab Paths
           </button>
           <button
@@ -54,6 +64,19 @@ function CopyMenu({ item }) {
             onClick={() => doCopy(join(item.course_case_study_paths))}
           >
             Case Study Paths
+          </button>
+          <div className="my-1 h-px bg-white/10" />
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.website_urls))}
+          >
+            Website URLs
+          </button>
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.exam_links))}
+          >
+            Exam Links
           </button>
         </div>
       </details>
@@ -89,7 +112,9 @@ export default function PublicCoursesAdminPage() {
   /* ---- load dropdown options ---- */
   const fetchAll = async () => {
     const [pg, sk] = await Promise.all([
-      fetch("/api/programs?withCounts=1", { cache: "no-store" }).then((r) => r.json()),
+      fetch("/api/programs?withCounts=1", { cache: "no-store" }).then((r) =>
+        r.json()
+      ),
       fetch("/api/skills", { cache: "no-store" }).then((r) => r.json()),
     ]);
     setPrograms(pg.items || []);
@@ -97,6 +122,7 @@ export default function PublicCoursesAdminPage() {
   };
 
   /* ---- load items ---- */
+  // --- แทนที่ทั้งฟังก์ชัน fetchItems ด้วยเวอร์ชันนี้ ---
   const fetchItems = async () => {
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
@@ -106,7 +132,26 @@ export default function PublicCoursesAdminPage() {
     const res = await fetch(`/api/public-courses?${qs.toString()}`, {
       cache: "no-store",
     });
-    const data = await res.json();
+
+    // ป้องกัน JSON parse error
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(
+        `Fetch /api/public-courses failed (${res.status}): ${txt || e.message}`
+      );
+    }
+
+    if (!res.ok || data?.ok === false) {
+      throw new Error(
+        data?.error
+          ? `API error (${res.status}): ${data.error}`
+          : `API error (${res.status})`
+      );
+    }
+
     setItems(data.items || []);
   };
 
@@ -209,7 +254,10 @@ export default function PublicCoursesAdminPage() {
       {/* grouped list */}
       <div className="space-y-6">
         {grouped.map((group, idx) => (
-          <section key={idx} className="rounded-2xl bg-white/5 ring-1 ring-white/10">
+          <section
+            key={idx}
+            className="rounded-2xl bg-white/5 ring-1 ring-white/10"
+          >
             {/* group header */}
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <div className="flex items-center gap-3">
@@ -218,7 +266,8 @@ export default function PublicCoursesAdminPage() {
                   {group.program?.program_name || "Uncategorized"}
                 </span>
                 <span className="text-xs opacity-70">
-                  ({group.rows.length} course{group.rows.length > 1 ? "s" : ""})
+                  ({group.rows.length} course
+                  {group.rows.length > 1 ? "s" : ""})
                 </span>
               </div>
             </div>
@@ -226,7 +275,10 @@ export default function PublicCoursesAdminPage() {
             {/* rows */}
             <div className="divide-y divide-white/10">
               {group.rows.map((it) => (
-                <div key={it._id} className="p-4 flex items-start justify-between gap-3">
+                <div
+                  key={it._id}
+                  className="p-4 flex items-start justify-between gap-3"
+                >
                   <div className="flex items-start gap-3">
                     {/* cover */}
                     {it.course_cover_url ? (
@@ -240,17 +292,28 @@ export default function PublicCoursesAdminPage() {
                     ) : null}
 
                     <div>
-                      <div className="text-base font-medium">{it.course_name}</div>
+                      <div className="text-base font-medium">
+                        {it.course_name}
+                      </div>
                       <div className="text-sm opacity-80">
-                        ID: {it.course_id} | Days: {it.course_trainingdays ?? 0} | Hours:{" "}
-                        {it.course_traininghours ?? 0} | Price: {it.course_price ?? 0}
+                        ID: {it.course_id} | Days: {it.course_trainingdays ?? 0}{" "}
+                        | Hours: {it.course_traininghours ?? 0} | Price:{" "}
+                        {it.course_price ?? 0}
                       </div>
                       <div className="text-sm mt-1">
-                        Skills: {it.skills?.map((s) => s.skill_name).join(", ") || "-"}
+                        Skills:{" "}
+                        {it.skills?.map((s) => s.skill_name).join(", ") || "-"}
                       </div>
-                      {/* {it.course_teaser && (
-                        <p className="text-sm opacity-80 mt-2">{it.course_teaser}</p>
-                      )} */}
+                      {it.previous_course && (
+                        <div className="text-xs mt-1 opacity-60">
+                          Previous:{" "}
+                          {it.previous_course.course_name
+                            ? `${it.previous_course.course_name} (${
+                                it.previous_course.course_id || "-"
+                              })`
+                            : it.previous_course.course_id || "-"}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -277,7 +340,9 @@ export default function PublicCoursesAdminPage() {
                     <button
                       onClick={async () => {
                         if (!confirm("Delete this course?")) return;
-                        await fetch(`/api/public-courses/${it._id}`, { method: "DELETE" });
+                        await fetch(`/api/public-courses/${it._id}`, {
+                          method: "DELETE",
+                        });
                         fetchItems();
                       }}
                       className="rounded-lg px-3 py-1 bg-red-500/80 hover:bg-red-500"
