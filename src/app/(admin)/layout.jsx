@@ -16,6 +16,7 @@ export default function AdminLayout({ children }) {
         <NavLink href="/admin/courses/online">Online Courses</NavLink>
         <NavLink href="/admin/programs">Programs</NavLink>
         <NavLink href="/admin/skills">Skills</NavLink>
+        <NavLink href="/admin/events">Events</NavLink>
 
         <div className="h-px bg-white/10 my-2" />
 
