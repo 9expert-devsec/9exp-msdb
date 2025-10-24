@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+
+import { useEffect, useState } from "react";
 
 /* ---------- constants ---------- */
 const LEVELS = [
@@ -18,19 +19,33 @@ const DEFAULT = {
   course_price: 0,
   course_netprice: null,
   course_cover_url: "",
+  course_levels: "1",
   course_type_public: true,
   course_type_inhouse: false,
-  course_levels: "1",
   course_workshop_status: false,
   course_certificate_status: false,
   course_promote_status: false,
+  sort_order: 0,
+
+  program: "",
+  skills: [],
+
   course_objectives: "",
   course_target_audience: "",
   course_prerequisites: "",
   course_system_requirements: "",
-  course_training_topics: "",
-  program: "",
-  skills: [],
+
+  // topics แบบ object (รองรับหัวข้อย่อย)
+  training_topics: [], // [{ title:'หัวข้อ', bullets:['ย่อย1','ย่อย2'] }]
+
+  // paths/URLs (เก็บเป็น array ของ string)
+  course_doc_paths: [],
+  course_lab_paths: [],
+  course_case_study_paths: [],
+  website_urls: [],
+  exam_links: [],
+
+  previous_course: "",
 };
 
 /* ---------- tiny helpers ---------- */
@@ -57,13 +72,84 @@ const BulletHint = ({ title }) => (
   </div>
 );
 
+/* ---------- editor: training topics (with sub-bullets) ---------- */
+function TopicsEditor({ value = [], onChange }) {
+  const addTopic = () =>
+    onChange([...(value || []), { title: "", bullets: [] }]);
+
+  const removeTopic = (idx) => {
+    const a = [...value];
+    a.splice(idx, 1);
+    onChange(a);
+  };
+
+  const setTopicTitle = (idx, t) => {
+    const a = [...value];
+    a[idx] = { ...(a[idx] || {}), title: t };
+    onChange(a);
+  };
+
+  // ❗ ไม่ filter ตอนพิมพ์ เพื่อให้ Enter แล้วขึ้นบรรทัดใหม่ได้
+  const setTopicBullets = (idx, text) => {
+    const bullets = (text || "").split("\n").map((s) => s); // keep raw
+    const a = [...value];
+    a[idx] = { ...(a[idx] || {}), bullets };
+    onChange(a);
+  };
+
+  return (
+    <div className="space-y-3">
+      {(value || []).map((t, i) => (
+        <div
+          key={i}
+          className="rounded-lg bg-white/5 ring-1 ring-white/10 p-3 space-y-2"
+        >
+          <div className="flex items-center gap-2">
+            <FieldLabel>หัวข้อที่ {i + 1}</FieldLabel>
+            <button
+              type="button"
+              className="ml-auto text-xs px-2 py-1 rounded bg-red-500/80 hover:bg-red-500"
+              onClick={() => removeTopic(i)}
+            >
+              ลบหัวข้อนี้
+            </button>
+          </div>
+          <input
+            className="input"
+            placeholder="Topic title..."
+            value={t?.title || ""}
+            onChange={(e) => setTopicTitle(i, e.target.value)}
+          />
+          <div>
+            <FieldLabel hint="1 บรรทัด = 1 ย่อย">หัวข้อย่อย</FieldLabel>
+            <textarea
+              className="textarea min-h-[100px]"
+              placeholder="ใส่เป็นบรรทัดละ 1 ย่อย"
+              value={(t?.bullets || []).join("\n")}
+              onChange={(e) => setTopicBullets(i, e.target.value)}
+            />
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="rounded-lg px-3 py-2 bg-white/10 hover:bg-white/20"
+        onClick={addTopic}
+      >
+        + เพิ่มหัวข้อ
+      </button>
+    </div>
+  );
+}
+
 /* ---------- main ---------- */
 export default function PublicCourseForm({ item = {}, onSaved }) {
   const [programs, setPrograms] = useState([]);
   const [skills, setSkills] = useState([]);
+  const [allCourses, setAllCourses] = useState([]);
+
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-
   const [form, setForm] = useState(DEFAULT);
 
   const set = (k, v) => setForm((s) => ({ ...s, [k]: v }));
@@ -73,35 +159,20 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
       .map((t) => t.trim())
       .filter(Boolean);
 
-  const countBullets = useMemo(
-    () => ({
-      obj: parseLines(form.course_objectives).length,
-      aud: parseLines(form.course_target_audience).length,
-      pre: parseLines(form.course_prerequisites).length,
-      sys: parseLines(form.course_system_requirements).length,
-      top: parseLines(form.course_training_topics).length,
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }),
-    [
-      form.course_objectives,
-      form.course_target_audience,
-      form.course_prerequisites,
-      form.course_system_requirements,
-      form.course_training_topics,
-    ]
-  );
-
   /* ---------- load options ---------- */
   useEffect(() => {
     (async () => {
-      const [pg, sk] = await Promise.all([
+      const [pg, sk, co] = await Promise.all([
         fetch("/api/programs").then((r) => r.json()),
         fetch("/api/skills").then((r) => r.json()),
+        fetch("/api/public-courses?limit=1000").then((r) => r.json()),
       ]);
       setPrograms(pg.items || []);
       setSkills(sk.items || []);
+      setAllCourses((co.items || []).filter((c) => c._id !== item?._id));
     })();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?._id]);
 
   /* ---------- load item ---------- */
   useEffect(() => {
@@ -111,18 +182,77 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
       ...DEFAULT,
       ...item,
       course_levels: item.course_levels || "1",
+
       course_objectives: toText(item.course_objectives),
       course_target_audience: toText(item.course_target_audience),
       course_prerequisites: toText(item.course_prerequisites),
       course_system_requirements: toText(item.course_system_requirements),
-      course_training_topics: toText(item.course_training_topics),
+
+      training_topics: Array.isArray(item.training_topics)
+        ? item.training_topics.map((t) =>
+            typeof t === "string"
+              ? { title: t, bullets: [] }
+              : {
+                  title: t.title || "",
+                  bullets: Array.isArray(t.bullets) ? t.bullets : [],
+                }
+          )
+        : [],
+
+      course_doc_paths: item.course_doc_paths || [],
+      course_lab_paths: item.course_lab_paths || [],
+      course_case_study_paths: item.course_case_study_paths || [],
+      website_urls: item.website_urls || [],
+      exam_links: item.exam_links || [],
+
       program: item?.program?._id || item?.program || "",
       skills: Array.isArray(item?.skills)
         ? item.skills.map((s) => s._id || s)
         : [],
+      previous_course:
+        item?.previous_course?._id ||
+        (typeof item?.previous_course === "string" ? item.previous_course : ""),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item]);
+
+  /* ---------- textarea (array) helper ---------- */
+  const ArrayTextarea = ({ label, value, onChange, hint, placeholder }) => {
+    // เก็บข้อความดิบใน state ภายใน ปลอดภัยกับ IME/ภาษาไทย
+    const [text, setText] = useState((value || []).join("\n"));
+
+    // ซิงค์เมื่อค่า value ภายนอกเปลี่ยน (เช่นตอนเปิดฟอร์ม/โหลดข้อมูล)
+    useEffect(() => {
+      setText((value || []).join("\n"));
+    }, [value]);
+
+    // แปลงเป็นอาเรย์เฉพาะตอน blur (ลด re-render ที่ทำให้หลุดโฟกัส)
+    const commit = () => {
+      const parsed = (text || "").split("\n"); // ไม่ trim ที่นี่ ปล่อยให้ไป clean ตอน submit
+      onChange(parsed);
+    };
+
+    const liveCount = (text || "")
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean).length;
+
+    return (
+      <div>
+        <FieldLabel hint={hint}>{label}</FieldLabel>
+        <textarea
+          className="w-full min-h-[120px] rounded-xl bg-white/5 border border-white/10 ring-1 ring-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-400/60"
+          placeholder={placeholder || "https://... (1 บรรทัด = 1 ลิงก์)"}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+        />
+        <div className="text-xs text-slate-400 mt-1">
+          รวม {liveCount} ลิงก์ (ก๊อป/วาง ได้ทีละหลายบรรทัด)
+        </div>
+      </div>
+    );
+  };
 
   /* ---------- upload ---------- */
   const onUpload = async (file) => {
@@ -148,6 +278,9 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
     e.preventDefault();
     setSaving(true);
     try {
+      const cleanArray = (arr) =>
+        (arr || []).map((s) => (s || "").trim()).filter(Boolean);
+
       const payload = {
         ...form,
         course_trainingdays: +form.course_trainingdays || 0,
@@ -157,17 +290,41 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
           form.course_netprice === "" || form.course_netprice == null
             ? null
             : +form.course_netprice,
+        sort_order: +form.sort_order || 0,
+
+        // plain bullets
         course_objectives: parseLines(form.course_objectives),
         course_target_audience: parseLines(form.course_target_audience),
         course_prerequisites: parseLines(form.course_prerequisites),
         course_system_requirements: parseLines(form.course_system_requirements),
-        course_training_topics: parseLines(form.course_training_topics),
+
+        // topics — clean ช่องว่างที่ submit
+        training_topics: (form.training_topics || []).map((t) => ({
+          title: (t.title || "").trim(),
+          bullets: (t.bullets || [])
+            .map((b) => (b || "").trim())
+            .filter(Boolean),
+        })),
+
+        // URLs — clean ช่องว่างที่ submit
+        course_doc_paths: cleanArray(form.course_doc_paths),
+        course_lab_paths: cleanArray(form.course_lab_paths),
+        course_case_study_paths: cleanArray(form.course_case_study_paths),
+        website_urls: cleanArray(form.website_urls),
+        exam_links: cleanArray(form.exam_links),
+
+        // relations
+        program: form.program || null,
+        skills: form.skills || [],
+        previous_course: form.previous_course || null,
       };
+
       const method = item && item._id ? "PATCH" : "POST";
       const url =
         item && item._id
           ? `/api/public-courses/${item._id}`
           : `/api/public-courses`;
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -221,8 +378,8 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
         </div>
       </Section>
 
-      {/* Cover & Schedule & Level & Price */}
-      <Section title="สื่อ & เวลาเรียน & ระดับ & ราคา">
+      {/* Cover & Schedule & Level & Price & Sort & Previous */}
+      <Section title="สื่อ เวลา ราคา & ลำดับแสดงผล">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {/* Cover */}
           <div>
@@ -253,19 +410,24 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
                   >
                     ลบรูป
                   </button>
-                  <a
-                    target="_blank"
-                    href={form.course_cover_url}
-                    className="text-sm underline"
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(
+                        form.course_cover_url || ""
+                      );
+                      alert("Copied!");
+                    }}
+                    className="text-sm px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
                   >
-                    เปิดรูป
-                  </a>
+                    Copy Cover URL
+                  </button>
                 </>
               )}
             </div>
           </div>
 
-          {/* Days/Hours/Level/Price */}
+          {/* Days/Hours/Level/Price/Net/Sort/Previous */}
           <div className="grid grid-cols-3 gap-2">
             <div>
               <FieldLabel>Days</FieldLabel>
@@ -371,6 +533,30 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
                 onChange={(e) => set("course_netprice", e.target.value)}
               />
             </div>
+            <div className="col-span-3">
+              <FieldLabel>แสดงเป็นลำดับที่ (sort order)</FieldLabel>
+              <input
+                type="number"
+                className="input"
+                value={form.sort_order}
+                onChange={(e) => set("sort_order", e.target.value)}
+              />
+            </div>
+            <div className="col-span-3">
+              <FieldLabel>คอร์สก่อนหน้า (เลือก 1 รายการ)</FieldLabel>
+              <select
+                className="input"
+                value={form.previous_course || ""}
+                onChange={(e) => set("previous_course", e.target.value)}
+              >
+                <option value="">— ไม่ระบุ —</option>
+                {(allCourses || []).map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.course_name} ({c.course_id})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </Section>
@@ -444,7 +630,6 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
                   </option>
                 ))}
               </select>
-              {/* จุดสีของโปรแกรม */}
               {(() => {
                 const p = programs.find((x) => x._id === form.program);
                 return (
@@ -476,7 +661,6 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
                 </option>
               ))}
             </select>
-            {/* แสดง chips ของสกิลที่เลือก */}
             <div className="mt-2 flex flex-wrap gap-2">
               {form.skills.map((id) => {
                 const s = skills.find((x) => x._id === id);
@@ -498,19 +682,14 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
         </div>
       </Section>
 
-      {/* Bullets */}
+      {/* Bullets (plain) */}
       <Section
-        title="รายละเอียดคอร์ส"
+        title="รายละเอียดคอร์ส (หัวข้อหลัก)"
         desc="ใส่รายการเป็นบรรทัด ๆ ระบบจะเก็บเป็นอาเรย์และไปเรนเดอร์เป็น bullet list ให้"
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <div>
-            <FieldLabel>
-              Objectives{" "}
-              <span className="text-xs text-slate-400">
-                ({countBullets.obj} ข้อ)
-              </span>
-            </FieldLabel>
+            <FieldLabel>Objectives</FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="ใส่ทีละบรรทัด"
@@ -520,12 +699,7 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
             <BulletHint title="Objectives" />
           </div>
           <div>
-            <FieldLabel>
-              Target Audience{" "}
-              <span className="text-xs text-slate-400">
-                ({countBullets.aud} ข้อ)
-              </span>
-            </FieldLabel>
+            <FieldLabel>Target Audience</FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="ใส่ทีละบรรทัด"
@@ -535,12 +709,7 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
             <BulletHint title="Target Audience" />
           </div>
           <div>
-            <FieldLabel>
-              Prerequisites{" "}
-              <span className="text-xs text-slate-400">
-                ({countBullets.pre} ข้อ)
-              </span>
-            </FieldLabel>
+            <FieldLabel>Prerequisites</FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="ใส่ทีละบรรทัด"
@@ -550,12 +719,7 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
             <BulletHint title="Prerequisites" />
           </div>
           <div>
-            <FieldLabel>
-              System Requirements{" "}
-              <span className="text-xs text-slate-400">
-                ({countBullets.sys} ข้อ)
-              </span>
-            </FieldLabel>
+            <FieldLabel>System Requirements</FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="ใส่ทีละบรรทัด"
@@ -566,25 +730,52 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
             />
             <BulletHint title="System Requirements" />
           </div>
-          <div className="lg:col-span-2">
-            <FieldLabel>
-              Training Topics{" "}
-              <span className="text-xs text-slate-400">
-                ({countBullets.top} ข้อ)
-              </span>
-            </FieldLabel>
-            <textarea
-              className="textarea min-h-[120px]"
-              placeholder="ใส่ทีละบรรทัด"
-              value={form.course_training_topics}
-              onChange={(e) => set("course_training_topics", e.target.value)}
-            />
-            <BulletHint title="Training Topics" />
-          </div>
         </div>
       </Section>
 
-      {/* sticky footer inside modal */}
+      {/* Training topics with sub-bullets */}
+      <Section
+        title="Training Topics (หัวข้อ + หัวย่อย)"
+        desc="เพิ่มหัวข้อและระบุหัวข้อย่อยของแต่ละหัวข้อ (สำหรับใช้เรนเดอร์เป็น bullet list แบบซ้อน)"
+      >
+        <TopicsEditor
+          value={form.training_topics || []}
+          onChange={(v) => set("training_topics", v)}
+        />
+      </Section>
+
+      {/* URLs / Paths */}
+      <Section title="เอกสาร/ลิงก์ประกอบ (URL)">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <ArrayTextarea
+            label="Doc Paths"
+            value={form.course_doc_paths}
+            onChange={(v) => set("course_doc_paths", v)}
+          />
+          <ArrayTextarea
+            label="Lab Paths"
+            value={form.course_lab_paths}
+            onChange={(v) => set("course_lab_paths", v)}
+          />
+          <ArrayTextarea
+            label="Case Study Paths"
+            value={form.course_case_study_paths}
+            onChange={(v) => set("course_case_study_paths", v)}
+          />
+          <ArrayTextarea
+            label="Website URLs"
+            value={form.website_urls}
+            onChange={(v) => set("website_urls", v)}
+          />
+          <ArrayTextarea
+            label="Exam Links"
+            value={form.exam_links}
+            onChange={(v) => set("exam_links", v)}
+          />
+        </div>
+      </Section>
+
+      {/* sticky footer */}
       <div className="sticky bottom-0 bg-slate-900/95 backdrop-blur border-t border-white/10 -mx-4 px-4 py-3 flex justify-end">
         <button
           disabled={saving}
@@ -594,7 +785,7 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
         </button>
       </div>
 
-      {/* local styles (tailwind-less helpers) */}
+      {/* local styles */}
       <style jsx>{`
         .input {
           width: 100%;
@@ -606,9 +797,16 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
         .textarea {
           width: 100%;
           background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.18);
           border-radius: 0.75rem;
           padding: 0.625rem 0.75rem;
+          color: #e5e7eb;
+          outline: none;
+          transition: box-shadow 120ms, border-color 120ms;
+        }
+        .textarea:focus {
+          border-color: rgba(16, 185, 129, 0.55);
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
         }
         .chk {
           display: flex;

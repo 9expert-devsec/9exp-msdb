@@ -9,31 +9,28 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   await dbConnect();
   const { searchParams } = new URL(req.url);
-  const q = searchParams.get("q"),
-    program = searchParams.get("program"),
-    skill = searchParams.get("skill");
-  const query = {};
-  if (q && q.trim()) {
-    try {
-      query.$text = { $search: q };
-    } catch {
-      const rx = new RegExp(q, "i");
-      query.$or = [{ o_course_name: rx }, { o_course_teaser: rx }];
-    }
-  }
-  if (program && Types.ObjectId.isValid(program)) query.program = program;
-  if (skill && Types.ObjectId.isValid(skill)) query.skills = { $in: [skill] };
+  const q = searchParams.get("q") || "";
+  const program = searchParams.get("program") || "";
+  const skill = searchParams.get("skill") || "";
 
-  const items = await OnlineCourse.find(query)
-    .populate({
-      path: "program",
-      select: "program_name programiconurl programcolor", // <- เพิ่มตรงนี้
-    })
-    .populate({ path: "skills", select: "skill_name" })
-    .sort({ course_name: 1 })
+  const where = {};
+  if (q) {
+    where.$or = [
+      { o_course_name: { $regex: q, $options: "i" } },
+      { o_course_teaser: { $regex: q, $options: "i" } },
+      { o_course_id: { $regex: q, $options: "i" } },
+    ];
+  }
+  if (program) where.program = program;
+  if (skill) where.skills = skill;
+
+  const items = await OnlineCourse.find(where)
+    .populate("program")
+    .populate("skills")
+    .sort({ sort_order: 1, createdAt: -1 })
     .lean();
 
-  return new Response(JSON.stringify({ items }), { status: 200 });
+  return Response.json({ items });
 }
 
 export async function POST(req) {

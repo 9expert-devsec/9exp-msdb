@@ -1,7 +1,9 @@
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
 import PublicCourseForm from "./PublicCourseForm";
 
+/* ========== small UI helpers ========== */
 function ProgramBadge({ program }) {
   if (program?.programiconurl) {
     return (
@@ -20,33 +22,136 @@ function ProgramBadge({ program }) {
   );
 }
 
+function CopyMenu({ item }) {
+  const join = (a) => (Array.isArray(a) ? a.join("\n") : "");
+
+  const doCopy = async (txt) => {
+    try {
+      await navigator.clipboard.writeText(txt || "");
+      alert("Copied!");
+    } catch {
+      alert("Copy failed");
+    }
+  };
+
+  return (
+    <div className="relative">
+      <details className="group">
+        <summary className="cursor-pointer rounded-lg px-3 py-1 bg-white/10 hover:bg-white/20">
+          Copy
+        </summary>
+        <div className="absolute right-0 mt-1 w-56 rounded-xl bg-slate-800 ring-1 ring-white/10 p-1 z-10">
+          <button
+            className="mitem"
+            onClick={() => doCopy(item.course_cover_url)}
+          >
+            Cover URL
+          </button>
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.course_doc_paths))}
+          >
+            Doc Paths
+          </button>
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.course_lab_paths))}
+          >
+            Lab Paths
+          </button>
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.course_case_study_paths))}
+          >
+            Case Study Paths
+          </button>
+          <div className="my-1 h-px bg-white/10" />
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.website_urls))}
+          >
+            Website URLs
+          </button>
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.exam_links))}
+          >
+            Exam Links
+          </button>
+        </div>
+      </details>
+      <style jsx>{`
+        .mitem {
+          width: 100%;
+          text-align: left;
+          font-size: 0.875rem;
+          padding: 0.5rem 0.75rem;
+          border-radius: 0.5rem;
+        }
+        .mitem:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ========== main page ========== */
 export default function PublicCoursesAdminPage() {
   const [items, setItems] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [skills, setSkills] = useState([]);
   const [editItem, setEditItem] = useState(null);
+
   const [q, setQ] = useState("");
   const [program, setProgram] = useState("");
   const [skill, setSkill] = useState("");
 
+  const [previewUrl, setPreviewUrl] = useState("");
+
+  /* ---- load dropdown options ---- */
   const fetchAll = async () => {
     const [pg, sk] = await Promise.all([
-      fetch("/api/programs?withCounts=1").then((r) => r.json()),
-      fetch("/api/skills").then((r) => r.json()),
+      fetch("/api/programs?withCounts=1", { cache: "no-store" }).then((r) =>
+        r.json()
+      ),
+      fetch("/api/skills", { cache: "no-store" }).then((r) => r.json()),
     ]);
     setPrograms(pg.items || []);
     setSkills(sk.items || []);
   };
 
+  /* ---- load items ---- */
+  // --- แทนที่ทั้งฟังก์ชัน fetchItems ด้วยเวอร์ชันนี้ ---
   const fetchItems = async () => {
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
     if (program) qs.set("program", program);
     if (skill) qs.set("skill", skill);
+
     const res = await fetch(`/api/public-courses?${qs.toString()}`, {
       cache: "no-store",
     });
-    const data = await res.json();
+
+    // ป้องกัน JSON parse error
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(
+        `Fetch /api/public-courses failed (${res.status}): ${txt || e.message}`
+      );
+    }
+
+    if (!res.ok || data?.ok === false) {
+      throw new Error(
+        data?.error
+          ? `API error (${res.status}): ${data.error}`
+          : `API error (${res.status})`
+      );
+    }
+
     setItems(data.items || []);
   };
 
@@ -57,6 +162,7 @@ export default function PublicCoursesAdminPage() {
     fetchItems();
   }, [q, program, skill]);
 
+  /* ---- lock scroll when modal open ---- */
   useEffect(() => {
     const lock = editItem !== null;
     if (lock) {
@@ -69,18 +175,30 @@ export default function PublicCoursesAdminPage() {
     };
   }, [editItem]);
 
+  /* ---- group by program ---- */
   const grouped = useMemo(() => {
     const map = new Map();
     for (const it of items) {
       const key = it.program?._id || "unknown";
-      if (!map.has(key)) map.set(key, { program: it.program, items: [] });
-      map.get(key).items.push(it);
+      if (!map.has(key)) map.set(key, { program: it.program, rows: [] });
+      map.get(key).rows.push(it);
     }
     return Array.from(map.values());
   }, [items]);
 
+  /* ---- quick set order ---- */
+  const setOrder = async (id, order) => {
+    await fetch(`/api/public-courses/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sort_order: order }),
+    });
+    fetchItems();
+  };
+
   return (
     <div className="space-y-6">
+      {/* header */}
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Public Courses</h1>
         <button
@@ -91,6 +209,7 @@ export default function PublicCoursesAdminPage() {
         </button>
       </header>
 
+      {/* filters */}
       <div className="flex gap-2 items-center flex-wrap">
         <input
           value={q}
@@ -132,69 +251,86 @@ export default function PublicCoursesAdminPage() {
         </button>
       </div>
 
-      {/* จัดกลุ่มตาม Program */}
+      {/* grouped list */}
       <div className="space-y-6">
-        {grouped.map((g, idx) => (
+        {grouped.map((group, idx) => (
           <section
             key={idx}
             className="rounded-2xl bg-white/5 ring-1 ring-white/10"
           >
+            {/* group header */}
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <div className="flex items-center gap-3">
-                <ProgramBadge program={g.program} />
+                <ProgramBadge program={group.program} />
                 <span className="font-medium">
-                  {g.program?.program_name || "Unassigned Program"}
+                  {group.program?.program_name || "Uncategorized"}
                 </span>
                 <span className="text-xs opacity-70">
-                  ({g.items.length} course{g.items.length > 1 ? "s" : ""})
+                  ({group.rows.length} course
+                  {group.rows.length > 1 ? "s" : ""})
                 </span>
               </div>
             </div>
+
+            {/* rows */}
             <div className="divide-y divide-white/10">
-              {g.items.map((it) => (
+              {group.rows.map((it) => (
                 <div
                   key={it._id}
-                  className="p-4 flex items-start justify-between"
+                  className="p-4 flex items-start justify-between gap-3"
                 >
-                  {/* left: cover + text */}
                   <div className="flex items-start gap-3">
-                    <div className="shrink-0">
-                      {it.course_cover_url ? (
-                        <img
-                          src={it.course_cover_url}
-                          alt={it.course_name}
-                          loading="lazy"
-                          className="h-16 w-28 rounded-md object-cover ring-1 ring-white/10 bg-white/5"
-                        />
-                      ) : (
-                        <div className="h-16 w-28 rounded-md ring-1 ring-white/10 bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-[10px] text-slate-300">
-                          No cover
-                        </div>
-                      )}
-                    </div>
+                    {/* cover */}
+                    {it.course_cover_url ? (
+                      <img
+                        src={it.course_cover_url}
+                        className="w-20 h-12 rounded object-cover ring-1 ring-white/10 cursor-zoom-in"
+                        alt=""
+                        title="คลิกเพื่อดูภาพใหญ่"
+                        onClick={() => setPreviewUrl(it.course_cover_url)}
+                      />
+                    ) : null}
 
                     <div>
                       <div className="text-base font-medium">
                         {it.course_name}
                       </div>
                       <div className="text-sm opacity-80">
-                        ID: {it.course_id} | Days:{" "}
-                        {it.course_trainingdays ?? 0} | Hours:{" "}
-                        {it.course_traininghours ?? 0} | Price:{" "}
+                        ID: {it.course_id} | Days: {it.course_trainingdays ?? 0}{" "}
+                        | Hours: {it.course_traininghours ?? 0} | Price:{" "}
                         {it.course_price ?? 0}
                       </div>
                       <div className="text-sm mt-1">
                         Skills:{" "}
                         {it.skills?.map((s) => s.skill_name).join(", ") || "-"}
                       </div>
-                      {/* {it.course_teaser && (
-                        <p className="text-sm opacity-80 mt-2">
-                          {it.course_teaser}
-                        </p>
-                      )} */}
+                      {it.previous_course && (
+                        <div className="text-xs mt-1 opacity-60">
+                          Previous:{" "}
+                          {it.previous_course.course_name
+                            ? `${it.previous_course.course_name} (${
+                                it.previous_course.course_id || "-"
+                              })`
+                            : it.previous_course.course_id || "-"}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+
+                  <div className="flex items-center gap-2">
+                    {/* order */}
+                    <input
+                      title="ลำดับ"
+                      type="number"
+                      className="w-16 rounded-lg bg-white/10 px-2 py-1 ring-1 ring-white/10 text-right"
+                      value={it.sort_order ?? 0}
+                      onChange={(e) => setOrder(it._id, +e.target.value || 0)}
+                    />
+
+                    {/* copy */}
+                    <CopyMenu item={it} />
+
+                    {/* actions */}
                     <button
                       onClick={() => setEditItem(it)}
                       className="rounded-lg px-3 py-1 bg-white/10 hover:bg-white/20"
@@ -222,6 +358,7 @@ export default function PublicCoursesAdminPage() {
         {!items.length && <div className="opacity-60">No courses found.</div>}
       </div>
 
+      {/* modal: create/edit */}
       {editItem !== null && (
         <div className="fixed inset-0 z-50 bg-black/60 p-0 sm:p-4">
           <div className="mx-auto w-full sm:max-w-5xl">
@@ -238,7 +375,6 @@ export default function PublicCoursesAdminPage() {
                 </button>
               </div>
 
-              {/* form zone */}
               <div className="p-4">
                 <PublicCourseForm
                   item={editItem}
@@ -250,6 +386,20 @@ export default function PublicCoursesAdminPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* lightbox preview */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setPreviewUrl("")}
+        >
+          <img
+            src={previewUrl}
+            alt="preview"
+            className="max-h-[90vh] max-w-[95vw] rounded-xl ring-1 ring-white/10"
+          />
         </div>
       )}
     </div>
