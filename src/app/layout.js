@@ -12,9 +12,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "9Expert x DATA + AI DAY 2025",
+  title: "9Expert MSDB",
   description:
-    "9Expert ขอขอบคุณที่ทุกคนเข้ามาร่วมงาน DATA + AI DAY 2025 | สมัครเข้าร่วมกิจกรรม | รับข่าวสารจาก 9Expert Training",
+    "9Expert MSDB ระบบจัดการกิจกรรมและแบบฟอร์มออนไลน์สำหรับ 9Expert Training",
 
   icons: {
     icon: "/favicon.ico",
@@ -23,9 +23,9 @@ export const metadata = {
   
   openGraph: {
     title: "9Expert x DATA + AI DAY 2025",
-    description: "9Expert ขอขอบคุณที่ทุกคนเข้ามาร่วมงาน DATA + AI DAY 2025",
+    description: "9Expert ขอขอบคุณที่ทุกคนเข้ามาร่วมงาน DATA + AI DAY 2025 | สมัครเข้าร่วมกิจกรรม | รับข่าวสารจาก 9Expert Training",
     url: "https://9exp-sec.com",
-    siteName: "9Expert Training",
+    siteName: "EVENT",
     images: [
       {
         url: "/og-image.jpg", // optional ถ้ามีรูปโปรโมต
