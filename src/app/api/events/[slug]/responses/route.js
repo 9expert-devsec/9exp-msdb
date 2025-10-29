@@ -87,7 +87,7 @@ export async function POST(req, ctx) {
   </div>
   <div style="padding: 0 24px">
     <h3 style="color: #000; font-size: 20px">
-      9Expert ขอขอบคุณที่ทุกคนเข้ามาร่วมงาน
+      ขอบคุณที่เพิ่มเพื่อนกับ 9Expert
     </h3>
     <p style="font-size: 18px; font-weight: 600">"${event.title}"</p>
     <p style="margin-top: 16px">
@@ -106,7 +106,7 @@ export async function POST(req, ctx) {
               font-size: 16px;
               border-radius: 5px;
             "
-        >Download File</a
+        >Download File</a>
       >
     </p>
   </div>

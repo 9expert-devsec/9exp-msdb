@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 const FIELD_TYPES = [
@@ -20,6 +20,7 @@ export default function EditEventPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [eventData, setEventData] = useState({
+    slug: "",
     title: "",
     banner_url: "",
     description: "",
@@ -44,10 +45,13 @@ export default function EditEventPage() {
       if (!isMounted) return;
 
       setEventData({
+        slug: data.slug || "",
         title: data.title || "",
         banner_url: data.banner_url || "",
         description: data.description || "",
-        start_date: data.start_date ? new Date(data.start_date).toISOString().slice(0,16) : "",
+        start_date: data.start_date
+          ? new Date(data.start_date).toISOString().slice(0, 16)
+          : "",
         location: data.location || "",
         published: !!data.published,
         email_field_key: data.email_field_key || "",
@@ -55,22 +59,32 @@ export default function EditEventPage() {
       });
       setLoading(false);
     })();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   function updateField(idx, patch) {
-    setEventData(s => ({
+    setEventData((s) => ({
       ...s,
-      form_fields: s.form_fields.map((f, i) => (i === idx ? { ...f, ...patch } : f)),
+      form_fields: s.form_fields.map((f, i) =>
+        i === idx ? { ...f, ...patch } : f
+      ),
     }));
   }
 
   function addField() {
-    setEventData(s => ({
+    setEventData((s) => ({
       ...s,
       form_fields: [
         ...s.form_fields,
-        { key: `field_${Date.now()}`, label: "Untitled", type: "short_text", required: false, options: [] },
+        {
+          key: `field_${Date.now()}`,
+          label: "Untitled",
+          type: "short_text",
+          required: false,
+          options: [],
+        },
       ],
     }));
   }
@@ -99,8 +113,39 @@ export default function EditEventPage() {
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Edit Event</h1>
-        <div className="text-sm opacity-70">ID: {id}</div>
+        <div>
+          <h1 className="text-2xl font-semibold">Edit Event</h1>
+          <div className="text-xs opacity-70 mt-1">ID: {id}</div>
+          {eventData.slug && (
+            <div className="text-xs opacity-70">
+              Public URL:{" "}
+              <a
+                href={`/event/${eventData.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                /event/{eventData.slug}
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* ปุ่ม Export */}
+        <div className="flex gap-2">
+          <a
+            href={`/api/admin/events/${id}/export?format=xlsx`}
+            className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500"
+          >
+            Export Excel
+          </a>
+          <a
+            href={`/api/admin/events/${id}/export?format=csv`}
+            className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500"
+          >
+            Export CSV
+          </a>
+        </div>
       </div>
 
       <div className="grid gap-3">
@@ -108,46 +153,60 @@ export default function EditEventPage() {
           className="bg-white/5 border border-white/10 rounded-lg px-3 py-2"
           placeholder="Title *"
           value={eventData.title}
-          onChange={e => setEventData(s => ({ ...s, title: e.target.value }))}
+          onChange={(e) =>
+            setEventData((s) => ({ ...s, title: e.target.value }))
+          }
         />
         <input
           className="bg-white/5 border border-white/10 rounded-lg px-3 py-2"
           placeholder="Banner URL"
           value={eventData.banner_url}
-          onChange={e => setEventData(s => ({ ...s, banner_url: e.target.value }))}
+          onChange={(e) =>
+            setEventData((s) => ({ ...s, banner_url: e.target.value }))
+          }
         />
         <textarea
           rows={4}
           className="bg-white/5 border border-white/10 rounded-lg px-3 py-2"
           placeholder="Description"
           value={eventData.description}
-          onChange={e => setEventData(s => ({ ...s, description: e.target.value }))}
+          onChange={(e) =>
+            setEventData((s) => ({ ...s, description: e.target.value }))
+          }
         />
         <div className="grid sm:grid-cols-2 gap-3">
           <input
             type="datetime-local"
             className="bg-white/5 border border-white/10 rounded-lg px-3 py-2"
             value={eventData.start_date}
-            onChange={e => setEventData(s => ({ ...s, start_date: e.target.value }))}
+            onChange={(e) =>
+              setEventData((s) => ({ ...s, start_date: e.target.value }))
+            }
           />
           <input
             className="bg-white/5 border border-white/10 rounded-lg px-3 py-2"
             placeholder="Location"
             value={eventData.location}
-            onChange={e => setEventData(s => ({ ...s, location: e.target.value }))}
+            onChange={(e) =>
+              setEventData((s) => ({ ...s, location: e.target.value }))
+            }
           />
         </div>
         <input
           className="bg-white/5 border border-white/10 rounded-lg px-3 py-2"
           placeholder="(Optional) Email field key เช่น email"
           value={eventData.email_field_key}
-          onChange={e => setEventData(s => ({ ...s, email_field_key: e.target.value }))}
+          onChange={(e) =>
+            setEventData((s) => ({ ...s, email_field_key: e.target.value }))
+          }
         />
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={eventData.published}
-            onChange={e => setEventData(s => ({ ...s, published: e.target.checked }))}
+            onChange={(e) =>
+              setEventData((s) => ({ ...s, published: e.target.checked }))
+            }
           />
           Published
         </label>
@@ -158,26 +217,34 @@ export default function EditEventPage() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Form fields</h2>
-          <button onClick={addField} className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20">
+          <button
+            onClick={addField}
+            className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+          >
             + Add field
           </button>
         </div>
 
         <div className="space-y-3">
           {eventData.form_fields.map((f, idx) => (
-            <div key={f.key} className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+            <div
+              key={f.key}
+              className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3"
+            >
               <div className="grid sm:grid-cols-[1fr_200px_110px] gap-3">
                 <input
                   className="bg-white/5 border border-white/10 rounded-lg px-3 py-2"
                   value={f.label}
-                  onChange={e => updateField(idx, { label: e.target.value })}
+                  onChange={(e) => updateField(idx, { label: e.target.value })}
                 />
                 <select
                   className="bg-white/5 border border-white/10 rounded-lg px-3 py-2"
                   value={f.type}
-                  onChange={e => updateField(idx, { type: e.target.value, options: [] })}
+                  onChange={(e) =>
+                    updateField(idx, { type: e.target.value, options: [] })
+                  }
                 >
-                  {FIELD_TYPES.map(t => (
+                  {FIELD_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>
                       {t.label}
                     </option>
@@ -187,16 +254,20 @@ export default function EditEventPage() {
                   <input
                     type="checkbox"
                     checked={f.required}
-                    onChange={e => updateField(idx, { required: e.target.checked })}
+                    onChange={(e) =>
+                      updateField(idx, { required: e.target.checked })
+                    }
                   />
                   Required
                 </label>
               </div>
 
-              {(f.type === "select" || f.type === "radio" || f.type === "checkbox") && (
+              {(f.type === "select" ||
+                f.type === "radio" ||
+                f.type === "checkbox") && (
                 <OptionsEditor
                   value={f.options || []}
-                  onChange={opts => updateField(idx, { options: opts })}
+                  onChange={(opts) => updateField(idx, { options: opts })}
                 />
               )}
 
@@ -204,7 +275,7 @@ export default function EditEventPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() =>
-                    setEventData(s => ({
+                    setEventData((s) => ({
                       ...s,
                       form_fields: s.form_fields.filter((_, i) => i !== idx),
                     }))
@@ -244,17 +315,26 @@ function OptionsEditor({ value = [], onChange }) {
           className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2"
           placeholder="Add option"
           value={txt}
-          onChange={e => setTxt(e.target.value)}
+          onChange={(e) => setTxt(e.target.value)}
         />
-        <button onClick={add} className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20">
+        <button
+          onClick={add}
+          className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+        >
           +
         </button>
       </div>
       <div className="flex flex-wrap gap-2">
         {(value || []).map((op, i) => (
-          <span key={i} className="px-2 py-1 rounded-full bg-white/10 border border-white/20 text-sm">
+          <span
+            key={i}
+            className="px-2 py-1 rounded-full bg-white/10 border border-white/20 text-sm"
+          >
             {op}
-            <button className="ml-2 opacity-70 hover:opacity-100" onClick={() => onChange(value.filter((_, idx) => idx !== i))}>
+            <button
+              className="ml-2 opacity-70 hover:opacity-100"
+              onClick={() => onChange(value.filter((_, idx) => idx !== i))}
+            >
               ×
             </button>
           </span>
