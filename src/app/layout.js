@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,7 +21,7 @@ export const metadata = {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
-  
+
   // openGraph: {
   //   title: "9Expert x DATA + AI DAY 2025",
   //   description: "9Expert ขอขอบคุณที่ทุกคนเข้ามาร่วมงาน DATA + AI DAY 2025 | สมัครเข้าร่วมกิจกรรม | รับข่าวสารจาก 9Expert Training",
@@ -46,6 +47,7 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
