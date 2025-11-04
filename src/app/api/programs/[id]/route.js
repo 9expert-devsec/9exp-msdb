@@ -1,4 +1,4 @@
-import dbConnect from "../../../../lib/mongoose";
+import dbConnect from "@/lib/mongoose";
 import Program from "@/models/Program";
 import { Types } from "mongoose";
 
