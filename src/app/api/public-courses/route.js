@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import PublicCourse from "@/models/PublicCourse";
 
+import "@/models/Program";
+import "@/models/Skill";
+
 const cleanArray = (a) =>
   Array.isArray(a) ? a.map((s) => String(s).trim()).filter(Boolean) : [];
 const cleanTopics = (arr) =>
