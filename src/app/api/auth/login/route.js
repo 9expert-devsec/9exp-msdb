@@ -1,34 +1,60 @@
+// /app/api/auth/login/route.js
 import dbConnect from "@/lib/mongoose";
 import AdminUser from "@/models/AdminUser";
-import { verifyPassword, signAuthJWT } from "@/lib/auth";
+import { verifyPassword, signAuthJWT, setAuthCookie } from "@/lib/auth";
+import { withRateLimit } from "@/lib/ratelimit";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req) {
+const INVALID = { ok: false, error: "Invalid email or password" };
+
+export const POST = withRateLimit({ points: 10, duration: 60 })(async (req) => {
   await dbConnect();
-  const { email, password } = await req.json();
 
-  const user = await AdminUser.findOne({ email: (email || "").toLowerCase(), isActive: true });
-  if (!user) return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+  // 1) รับและตรวจค่า input
+  const body = await req.json().catch(() => ({}));
+  const email = String(body?.email || "")
+    .trim()
+    .toLowerCase();
+  const password = String(body?.password || "");
+  if (!email || !password) {
+    return NextResponse.json(INVALID, { status: 401 });
+  }
 
-  const ok = await verifyPassword(password || "", user.passwordHash);
-  if (!ok) return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+  // 2) หา user ที่ active
+  const user = await AdminUser.findOne({ email, isActive: true }).lean();
+  if (!user) return NextResponse.json(INVALID, { status: 401 });
 
-  const token = await signAuthJWT({
-    uid: String(user._id),
-    email: user.email,
-    name: user.name || "",
-    role: user.role || "admin",
+  // 3) ตรวจรหัสผ่าน
+  const ok = await verifyPassword(password, user.passwordHash);
+  if (!ok) return NextResponse.json(INVALID, { status: 401 });
+
+  // 4) สร้าง JWT
+  const token = await signAuthJWT(
+    {
+      sub: String(user._id),
+      email: user.email,
+      name: user.name || "",
+      role: user.role || "admin",
+    },
+    { expiresIn: process.env.AUTH_TTL || "2h" }
+  );
+
+  // 5) สร้าง Response + ตั้ง cookie ปลอดภัย
+  const res = NextResponse.json({
+    ok: true,
+    user: {
+      id: String(user._id),
+      name: user.name || "",
+      role: user.role || "admin",
+    },
   });
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set("auth", token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 วัน
+  // ใช้ helper จาก lib/auth.js → __Host-auth
+  setAuthCookie(res, token, {
+    maxAgeSec: Number(process.env.AUTH_COOKIE_TTL_SEC || 7200),
   });
+
   return res;
-}
+});

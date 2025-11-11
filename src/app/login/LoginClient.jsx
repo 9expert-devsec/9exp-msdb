@@ -1,6 +1,7 @@
+// /app/login/LoginClient.jsx
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 /* helpers */
 function isValidEmail(v) {
@@ -11,13 +12,7 @@ const ErrorLine = ({ children, id }) => (
     id={id}
     className="mt-1 flex items-start gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-[12px] text-red-300"
   >
-    <svg
-      viewBox="0 0 24 24"
-      className="h-4 w-4 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-    >
+    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
     </svg>
     <span>{children}</span>
@@ -26,6 +21,8 @@ const ErrorLine = ({ children, id }) => (
 
 export default function LoginClient({ nextPath = "/admin/dashboard" }) {
   const router = useRouter();
+  const sp = useSearchParams();
+  const next = sp.get("next") || nextPath;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,6 +42,8 @@ export default function LoginClient({ nextPath = "/admin/dashboard" }) {
 
   async function onSubmit(ev) {
     ev.preventDefault();
+    if (loading) return; // กันกดซ้ำ
+
     const e = validate();
     setErrors(e);
     setTouched({ email: true, password: true });
@@ -58,12 +57,15 @@ export default function LoginClient({ nextPath = "/admin/dashboard" }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data?.error || "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
-      router.replace(nextPath);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+
+      // สำเร็จ → ไปหน้าถัดไป + refresh ให้ middleware เห็นคุกกี้ทันที
+      router.replace(next);
+      router.refresh();
     } catch (err) {
-      setBanner(err.message);
+      setBanner(err.message || "Sign in failed");
+    } finally {
       setLoading(false);
     }
   }
@@ -74,14 +76,11 @@ export default function LoginClient({ nextPath = "/admin/dashboard" }) {
         <h1 className="text-xl font-semibold mb-4">Sign in (Admin)</h1>
 
         {banner && (
-          <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-            <svg
-              viewBox="0 0 24 24"
-              className="h-5 w-5 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
+          <div
+            className="mb-4 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300"
+            aria-live="polite"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             </svg>
             <div>{banner}</div>
@@ -111,27 +110,18 @@ export default function LoginClient({ nextPath = "/admin/dashboard" }) {
               }}
               onBlur={() => {
                 setTouched((t) => ({ ...t, email: true }));
-                setErrors((s) => ({
-                  ...s,
-                  email: validate({ email, password }).email,
-                }));
+                setErrors((s) => ({ ...s, email: validate({ email, password }).email }));
               }}
               placeholder="admin@example.com"
               aria-invalid={!!(touched.email && errors.email)}
-              aria-describedby={
-                touched.email && errors.email ? "email-err" : undefined
-              }
+              aria-describedby={touched.email && errors.email ? "email-err" : undefined}
             />
-            {touched.email && errors.email && (
-              <ErrorLine id="email-err">{errors.email}</ErrorLine>
-            )}
+            {touched.email && errors.email && <ErrorLine id="email-err">{errors.email}</ErrorLine>}
           </div>
 
           {/* Password + eye */}
           <div>
-            <label className="block text-sm text-slate-300 mb-1">
-              Password
-            </label>
+            <label className="block text-sm text-slate-300 mb-1">Password</label>
             <div className="relative">
               <input
                 type={showPwd ? "text" : "password"}
@@ -147,22 +137,16 @@ export default function LoginClient({ nextPath = "/admin/dashboard" }) {
                   if (touched.password)
                     setErrors((s) => ({
                       ...s,
-                      password: validate({ email, password: e.target.value })
-                        .password,
+                      password: validate({ email, password: e.target.value }).password,
                     }));
                 }}
                 onBlur={() => {
                   setTouched((t) => ({ ...t, password: true }));
-                  setErrors((s) => ({
-                    ...s,
-                    password: validate({ email, password }).password,
-                  }));
+                  setErrors((s) => ({ ...s, password: validate({ email, password }).password }));
                 }}
                 placeholder="••••••••"
                 aria-invalid={!!(touched.password && errors.password)}
-                aria-describedby={
-                  touched.password && errors.password ? "pwd-err" : undefined
-                }
+                aria-describedby={touched.password && errors.password ? "pwd-err" : undefined}
               />
               <button
                 type="button"
@@ -173,41 +157,22 @@ export default function LoginClient({ nextPath = "/admin/dashboard" }) {
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-300 hover:text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
               >
                 {showPwd ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M3 3l18 18" />
                     <path d="M10.58 10.58A3 3 0 0012 15a3 3 0 002.42-4.42M9.88 5.09A10.94 10.94 0 0112 5c5.523 0 9.75 4.5 9.75 7s-4.227 7-9.75 7c-1.03 0-2.02-.14-2.95-.4M6.61 6.61C4.1 8.1 2.25 10.4 2.25 12s4.227 7 9.75 7" />
                   </svg>
                 ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M2.25 12c0 1.6 4.227 7 9.75 7s9.75-5.4 9.75-7-4.227-7-9.75-7-9.75 5.4-9.75 7z" />
                     <circle cx="12" cy="12" r="3.25" />
                   </svg>
                 )}
               </button>
             </div>
-            {touched.password && errors.password && (
-              <ErrorLine id="pwd-err">{errors.password}</ErrorLine>
-            )}
+            {touched.password && errors.password && <ErrorLine id="pwd-err">{errors.password}</ErrorLine>}
           </div>
 
-          <button
-            className="w-full rounded-xl px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60"
-            disabled={loading}
-          >
+          <button className="w-full rounded-xl px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60" disabled={loading}>
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
