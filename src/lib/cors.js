@@ -1,7 +1,11 @@
 // /lib/cors.js
-const ALLOW = (process.env.CORS_ORIGINS || "")
+const ALLOW = (
+  process.env.CORS_ALLOW_ORIGINS ||
+  process.env.CORS_ORIGINS ||          // fallback ให้ของเดิม
+  ""
+)
   .split(",")
-  .map((s) => s.trim())
+  .map(s => s.trim())
   .filter(Boolean);
 
 /**
