@@ -28,7 +28,7 @@ const DEFAULT = {
   o_course_system_requirements: "",
   o_course_training_topics: "",
 
-  // new: multi-URL fields (1 บรรทัด = 1 URL)
+  // multi-URL fields (1 บรรทัด = 1 URL)
   o_course_doc_paths: "",
   o_course_lab_paths: "",
   o_course_case_study_paths: "",
@@ -140,7 +140,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
       o_course_system_requirements: toText(item.o_course_system_requirements),
       o_course_training_topics: toText(item.o_course_training_topics),
 
-      // new url-list fields
+      // url-list fields
       o_course_doc_paths: toText(item.o_course_doc_paths),
       o_course_lab_paths: toText(item.o_course_lab_paths),
       o_course_case_study_paths: toText(item.o_course_case_study_paths),
@@ -186,7 +186,10 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
         // numeric
         o_number_lessons: +form.o_number_lessons || 0,
         o_course_traininghours: +form.o_course_traininghours || 0,
-        o_course_price: form.o_course_price === "" ? 0 : +form.o_course_price,
+        // สำหรับ compatibility กับ field เก่า o_traininghours
+        o_traininghours: +form.o_course_traininghours || 0,
+        o_course_price:
+          form.o_course_price === "" ? 0 : +form.o_course_price,
         o_course_netprice:
           form.o_course_netprice === "" || form.o_course_netprice == null
             ? null
@@ -205,7 +208,9 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
         // url lists
         o_course_doc_paths: parseLines(form.o_course_doc_paths),
         o_course_lab_paths: parseLines(form.o_course_lab_paths),
-        o_course_case_study_paths: parseLines(form.o_course_case_study_paths),
+        o_course_case_study_paths: parseLines(
+          form.o_course_case_study_paths
+        ),
       };
 
       const method = item && item._id ? "PATCH" : "POST";
@@ -357,7 +362,10 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
                   onClick={() =>
                     set(
                       "o_course_traininghours",
-                      Math.max(0, (+form.o_course_traininghours || 0) - 1)
+                      Math.max(
+                        0,
+                        (+form.o_course_traininghours || 0) - 1
+                      )
                     )
                   }
                   className="btn-step"
@@ -466,7 +474,9 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
             <input
               type="checkbox"
               checked={!!form.o_course_promote_status}
-              onChange={(e) => set("o_course_promote_status", e.target.checked)}
+              onChange={(e) =>
+                set("o_course_promote_status", e.target.checked)
+              }
             />{" "}
             Promote
           </label>
@@ -544,46 +554,60 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
           <div>
             <FieldLabel>
               Objectives{" "}
-              <span className="text-xs text-slate-400">({counts.obj} ข้อ)</span>
+              <span className="text-xs text-slate-400">
+                ({counts.obj} ข้อ)
+              </span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="ใส่ทีละบรรทัด"
               value={form.o_course_objectives}
-              onChange={(e) => set("o_course_objectives", e.target.value)}
+              onChange={(e) =>
+                set("o_course_objectives", e.target.value)
+              }
             />
             <BulletHint title="Objectives" />
           </div>
           <div>
             <FieldLabel>
               Target Audience{" "}
-              <span className="text-xs text-slate-400">({counts.aud} ข้อ)</span>
+              <span className="text-xs text-slate-400">
+                ({counts.aud} ข้อ)
+              </span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="ใส่ทีละบรรทัด"
               value={form.o_course_target_audience}
-              onChange={(e) => set("o_course_target_audience", e.target.value)}
+              onChange={(e) =>
+                set("o_course_target_audience", e.target.value)
+              }
             />
             <BulletHint title="Target Audience" />
           </div>
           <div>
             <FieldLabel>
               Prerequisites{" "}
-              <span className="text-xs text-slate-400">({counts.pre} ข้อ)</span>
+              <span className="text-xs text-slate-400">
+                ({counts.pre} ข้อ)
+              </span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="ใส่ทีละบรรทัด"
               value={form.o_course_prerequisites}
-              onChange={(e) => set("o_course_prerequisites", e.target.value)}
+              onChange={(e) =>
+                set("o_course_prerequisites", e.target.value)
+              }
             />
             <BulletHint title="Prerequisites" />
           </div>
           <div>
             <FieldLabel>
               System Requirements{" "}
-              <span className="text-xs text-slate-400">({counts.sys} ข้อ)</span>
+              <span className="text-xs text-slate-400">
+                ({counts.sys} ข้อ)
+              </span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
@@ -598,13 +622,17 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
           <div className="lg:col-span-2">
             <FieldLabel>
               Training Topics{" "}
-              <span className="text-xs text-slate-400">({counts.top} ข้อ)</span>
+              <span className="text-xs text-slate-400">
+                ({counts.top} ข้อ)
+              </span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="ใส่ทีละบรรทัด"
               value={form.o_course_training_topics}
-              onChange={(e) => set("o_course_training_topics", e.target.value)}
+              onChange={(e) =>
+                set("o_course_training_topics", e.target.value)
+              }
             />
             <BulletHint title="Training Topics" />
           </div>
@@ -620,37 +648,49 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
           <div>
             <FieldLabel>
               Doc Paths{" "}
-              <span className="text-xs text-slate-400">({counts.doc})</span>
+              <span className="text-xs text-slate-400">
+                ({counts.doc})
+              </span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="https://.../doc1.pdf\nhttps://.../doc2.pdf"
               value={form.o_course_doc_paths}
-              onChange={(e) => set("o_course_doc_paths", e.target.value)}
+              onChange={(e) =>
+                set("o_course_doc_paths", e.target.value)
+              }
             />
           </div>
           <div>
             <FieldLabel>
               Lab Paths{" "}
-              <span className="text-xs text-slate-400">({counts.lab})</span>
+              <span className="text-xs text-slate-400">
+                ({counts.lab})
+              </span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="https://.../lab1.zip\nhttps://.../lab2.zip"
               value={form.o_course_lab_paths}
-              onChange={(e) => set("o_course_lab_paths", e.target.value)}
+              onChange={(e) =>
+                set("o_course_lab_paths", e.target.value)
+              }
             />
           </div>
           <div>
             <FieldLabel>
               Case Study Paths{" "}
-              <span className="text-xs text-slate-400">({counts.cs})</span>
+              <span className="text-xs text-slate-400">
+                ({counts.cs})
+              </span>
             </FieldLabel>
             <textarea
               className="textarea min-h-[120px]"
               placeholder="https://.../case1\nhttps://.../case2"
               value={form.o_course_case_study_paths}
-              onChange={(e) => set("o_course_case_study_paths", e.target.value)}
+              onChange={(e) =>
+                set("o_course_case_study_paths", e.target.value)
+              }
             />
           </div>
         </div>
@@ -680,7 +720,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
         </div>
       )}
 
-      {/* local styles (tailwind-less helpers) */}
+      {/* local styles */}
       <style jsx>{`
         .input {
           width: 100%;

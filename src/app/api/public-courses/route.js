@@ -37,7 +37,10 @@ export const GET = withCors(
       const q = searchParams.get("q")?.trim();
       const program = searchParams.get("program");
       const skill = searchParams.get("skill");
-      const limit = Math.min(Math.max(toInt(searchParams.get("limit"), 50), 1), 200);
+      const limit = Math.min(
+        Math.max(toInt(searchParams.get("limit"), 50), 1),
+        200
+      );
       const page = Math.max(toInt(searchParams.get("page"), 1), 1);
 
       const filter = {};
@@ -47,6 +50,7 @@ export const GET = withCors(
 
       const total = await PublicCourse.countDocuments(filter);
       const items = await PublicCourse.find(filter)
+        .select("course_cover_url")
         .populate("program")
         .populate("skills")
         .populate("previous_course")
@@ -56,7 +60,10 @@ export const GET = withCors(
         .lean();
 
       // หมายเหตุ: ถ้าต้องการลดข้อมูลที่เปิดเผย ให้ .select(...) เฉพาะฟิลด์ที่จำเป็น
-      return NextResponse.json({ ok: true, total, page, limit, items }, { status: 200 });
+      return NextResponse.json(
+        { ok: true, total, page, limit, items },
+        { status: 200 }
+      );
     } catch (e) {
       return NextResponse.json(
         { ok: false, error: e.message || "Internal error" },
@@ -67,4 +74,6 @@ export const GET = withCors(
 );
 
 /* ---------------- OPTIONS (Preflight) ---------------- */
-export const OPTIONS = withCors(async () => new Response(null, { status: 204 }));
+export const OPTIONS = withCors(
+  async () => new Response(null, { status: 204 })
+);

@@ -1,36 +1,76 @@
-import dbConnect from "../../../../lib/mongoose";
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/mongoose";
 import OnlineCourse from "@/models/OnlineCourse";
-import { Types } from "mongoose";
-import "@/models/Program"; 
-import "@/models/Skill"; 
+
+import { withCors } from "@/lib/cors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_, { params }) {
-  await dbConnect();
-  const { id } = params;
-  if (!Types.ObjectId.isValid(id)) return new Response("Invalid id", { status: 400 });
-  const item = await OnlineCourse.findById(id)
-    .populate("program", "program_id program_name")
-    .populate("skills", "skill_id skill_name");
-  if (!item) return new Response("Not found", { status: 404 });
-  return new Response(JSON.stringify({ item }), { status: 200 });
-}
+const cleanArray = (text) =>
+  Array.isArray(text)
+    ? text
+    : String(text || "")
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-export async function PATCH(req, { params }) {
-  await dbConnect();
-  const { id } = params;
-  const payload = await req.json();
-  const item = await OnlineCourse.findByIdAndUpdate(id, payload, { new: true })
-    .populate("program", "program_id program_name")
-    .populate("skills", "skill_id skill_name");
-  if (!item) return new Response("Not found", { status: 404 });
-  return new Response(JSON.stringify({ item }), { status: 200 });
-}
+/* ---------- GET one ---------- */
+export const GET = withCors(async (req, { params }) => {
+  try {
+    await dbConnect();
+    const item = await OnlineCourse.findById(params.id)
+      .populate("program")
+      .populate("skills")
+      .lean();
 
-export async function DELETE(_, { params }) {
-  await dbConnect();
-  const { id } = params;
-  await OnlineCourse.findByIdAndDelete(id);
-  return new Response(null, { status: 204 });
-}
+    if (!item)
+      return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+
+    return NextResponse.json({ ok: true, item });
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+  }
+});
+
+/* ---------- PATCH ---------- */
+export const PATCH = withCors(async (req, { params }) => {
+  try {
+    await dbConnect();
+    const body = await req.json();
+
+    const payload = {
+      ...body,
+
+      o_course_doc_paths: cleanArray(body.o_course_doc_paths),
+      o_course_lab_paths: cleanArray(body.o_course_lab_paths),
+      o_course_case_study_paths: cleanArray(body.o_course_case_study_paths),
+
+      o_course_objectives: cleanArray(body.o_course_objectives),
+      o_course_target_audience: cleanArray(body.o_course_target_audience),
+      o_course_prerequisites: cleanArray(body.o_course_prerequisites),
+      o_course_system_requirements: cleanArray(body.o_course_system_requirements),
+      o_course_training_topics: cleanArray(body.o_course_training_topics),
+    };
+
+    const updated = await OnlineCourse.findByIdAndUpdate(params.id, payload, {
+      new: true,
+    });
+
+    return NextResponse.json({ ok: true, item: updated });
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+  }
+});
+
+/* ---------- DELETE ---------- */
+export const DELETE = withCors(async (req, { params }) => {
+  try {
+    await dbConnect();
+    await OnlineCourse.findByIdAndDelete(params.id);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+  }
+});
+
+export const OPTIONS = withCors(async () => new Response(null, { status: 204 }));

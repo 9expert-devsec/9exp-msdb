@@ -39,14 +39,23 @@ function CopyMenu({ item }) {
         <summary className="cursor-pointer rounded-lg px-3 py-1 bg-white/10 hover:bg-white/20">
           Copy
         </summary>
-        <div className="absolute right-0 mt-1 w-48 rounded-xl bg-slate-800 ring-1 ring-white/10 p-1 z-10">
-          <button className="mitem" onClick={() => doCopy(item.o_course_cover_url)}>
+        <div className="absolute right-0 mt-1 w-56 rounded-xl bg-slate-800 ring-1 ring-white/10 p-1 z-10">
+          <button
+            className="mitem"
+            onClick={() => doCopy(item.o_course_cover_url)}
+          >
             Cover URL
           </button>
-          <button className="mitem" onClick={() => doCopy(join(item.o_course_doc_paths))}>
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.o_course_doc_paths))}
+          >
             Doc Paths
           </button>
-          <button className="mitem" onClick={() => doCopy(join(item.o_course_lab_paths))}>
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.o_course_lab_paths))}
+          >
             Lab Paths
           </button>
           <button
@@ -89,7 +98,9 @@ export default function OnlineCoursesAdminPage() {
   /* ---- load dropdown options ---- */
   const fetchAll = async () => {
     const [pg, sk] = await Promise.all([
-      fetch("/api/programs?withCounts=1", { cache: "no-store" }).then((r) => r.json()),
+      fetch("/api/programs?withCounts=1", { cache: "no-store" }).then((r) =>
+        r.json()
+      ),
       fetch("/api/skills", { cache: "no-store" }).then((r) => r.json()),
     ]);
     setPrograms(pg.items || []);
@@ -106,7 +117,31 @@ export default function OnlineCoursesAdminPage() {
     const res = await fetch(`/api/online-courses?${qs.toString()}`, {
       cache: "no-store",
     });
-    const data = await res.json();
+
+    // ป้องกัน JSON parse error แบบเดียวกับ public-courses
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      const txt = await res.text().catch(() => "");
+      console.error(
+        `Fetch /api/online-courses failed (${res.status}):`,
+        txt || e
+      );
+      alert("โหลดรายการ Online Courses ไม่สำเร็จ");
+      return;
+    }
+
+    if (!res.ok || data?.ok === false) {
+      console.error("API /api/online-courses error:", data);
+      alert(
+        data?.error
+          ? `โหลดข้อมูลล้มเหลว: ${data.error}`
+          : "โหลดรายการ Online Courses ไม่สำเร็จ"
+      );
+      return;
+    }
+
     setItems(data.items || []);
   };
 
@@ -209,7 +244,10 @@ export default function OnlineCoursesAdminPage() {
       {/* grouped list */}
       <div className="space-y-6">
         {grouped.map((group, idx) => (
-          <section key={idx} className="rounded-2xl bg-white/5 ring-1 ring-white/10">
+          <section
+            key={idx}
+            className="rounded-2xl bg-white/5 ring-1 ring-white/10"
+          >
             {/* group header */}
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <div className="flex items-center gap-3">
@@ -218,7 +256,8 @@ export default function OnlineCoursesAdminPage() {
                   {group.program?.program_name || "Uncategorized"}
                 </span>
                 <span className="text-xs opacity-70">
-                  ({group.rows.length} course{group.rows.length > 1 ? "s" : ""})
+                  ({group.rows.length} course
+                  {group.rows.length > 1 ? "s" : ""})
                 </span>
               </div>
             </div>
@@ -226,7 +265,10 @@ export default function OnlineCoursesAdminPage() {
             {/* rows */}
             <div className="divide-y divide-white/10">
               {group.rows.map((it) => (
-                <div key={it._id} className="p-4 flex items-start justify-between gap-3">
+                <div
+                  key={it._id}
+                  className="p-4 flex items-start justify-between gap-3"
+                >
                   <div className="flex items-start gap-3">
                     {/* cover */}
                     {it.o_course_cover_url ? (
@@ -240,19 +282,22 @@ export default function OnlineCoursesAdminPage() {
                     ) : null}
 
                     <div>
-                      <div className="text-base font-medium">{it.o_course_name}</div>
+                      <div className="text-base font-medium">
+                        {it.o_course_name}
+                      </div>
                       <div className="text-sm opacity-80">
                         ID: {it.o_course_id} | Lessons:{" "}
                         {it.o_number_lessons ?? 0} | Hours:{" "}
-                        {it.o_traininghours ?? 0} | Price:{" "}
-                        {it.o_course_price ?? 0}
+                        {/* รองรับทั้ง field เก่า o_traininghours และใหม่ o_course_traininghours */}
+                        {it.o_course_traininghours ??
+                          it.o_traininghours ??
+                          0}{" "}
+                        | Price: {it.o_course_price ?? 0}
                       </div>
                       <div className="text-sm mt-1">
-                        Skills: {it.skills?.map((s) => s.skill_name).join(", ") || "-"}
+                        Skills:{" "}
+                        {it.skills?.map((s) => s.skill_name).join(", ") || "-"}
                       </div>
-                      {/* {it.course_teaser && (
-                        <p className="text-sm opacity-80 mt-2">{it.course_teaser}</p>
-                      )} */}
                     </div>
                   </div>
 
@@ -263,7 +308,9 @@ export default function OnlineCoursesAdminPage() {
                       type="number"
                       className="w-16 rounded-lg bg-white/10 px-2 py-1 ring-1 ring-white/10 text-right"
                       value={it.sort_order ?? 0}
-                      onChange={(e) => setOrder(it._id, +e.target.value || 0)}
+                      onChange={(e) =>
+                        setOrder(it._id, +e.target.value || 0)
+                      }
                     />
 
                     {/* copy */}
@@ -279,7 +326,9 @@ export default function OnlineCoursesAdminPage() {
                     <button
                       onClick={async () => {
                         if (!confirm("Delete this course?")) return;
-                        await fetch(`/api/online-courses/${it._id}`, { method: "DELETE" });
+                        await fetch(`/api/online-courses/${it._id}`, {
+                          method: "DELETE",
+                        });
                         fetchItems();
                       }}
                       className="rounded-lg px-3 py-1 bg-red-500/80 hover:bg-red-500"
