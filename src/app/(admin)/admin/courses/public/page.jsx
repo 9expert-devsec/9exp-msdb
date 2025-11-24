@@ -188,10 +188,10 @@ export default function PublicCoursesAdminPage() {
 
   /* ---- quick set order ---- */
   const setOrder = async (id, order) => {
-    await fetch(`/api/public-courses/${id}`, {
+    await fetch(`/api/admin/public-courses`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sort_order: order }),
+      body: JSON.stringify({ _id: id, sort_order: order }),
     });
     fetchItems();
   };
@@ -340,7 +340,7 @@ export default function PublicCoursesAdminPage() {
                     <button
                       onClick={async () => {
                         if (!confirm("Delete this course?")) return;
-                        await fetch(`/api/public-courses/${it._id}`, {
+                        await fetch(`/api/admin/public-courses?id=${it._id}`, {
                           method: "DELETE",
                         });
                         fetchItems();

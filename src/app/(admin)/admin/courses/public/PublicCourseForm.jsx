@@ -283,6 +283,8 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
 
       const payload = {
         ...form,
+        // ถ้าเป็นการแก้ไข ให้แนบ _id ไปให้ PATCH ใช้
+        ...(item && item._id ? { _id: item._id } : {}),
         course_trainingdays: +form.course_trainingdays || 0,
         course_traininghours: +form.course_traininghours || 0,
         course_price: form.course_price === "" ? 0 : +form.course_price,
@@ -320,10 +322,7 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
       };
 
       const method = item && item._id ? "PATCH" : "POST";
-      const url =
-        item && item._id
-          ? `/api/admin/public-courses/${item._id}`
-          : `/api/admin/public-courses`;
+      const url = `/api/admin/public-courses`; // ใช้ path เดียวกัน
 
       const res = await fetch(url, {
         method,
