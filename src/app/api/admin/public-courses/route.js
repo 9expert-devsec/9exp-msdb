@@ -36,13 +36,23 @@ const CourseSchema = z.object({
   course_name: z.string().min(1, "course_name is required"),
   course_teaser: z.string().optional().default(""),
 
-  // ✅ ใหม่: เก็บ URL ปกคอร์ส
-  // อนุญาตให้ว่าง ("") ได้ เพื่อให้เคสที่ยังไม่อัปโหลดภาพไม่ error
+  // ✅ Cover image URL (อนุญาตให้ว่าง "")
   course_cover_url: z
     .union([z.string().url(), z.literal("")])
     .optional()
     .default(""),
 
+  // ✅ Level
+  course_levels: z.string().optional().default("1"),
+
+  // ✅ Flags / Status ต่าง ๆ
+  course_type_public: z.boolean().optional().default(true),
+  course_type_inhouse: z.boolean().optional().default(false),
+  course_workshop_status: z.boolean().optional().default(false),
+  course_certificate_status: z.boolean().optional().default(false),
+  course_promote_status: z.boolean().optional().default(false),
+
+  // ✅ อันเดิม
   course_objectives: z.array(z.string()).optional().default([]),
   course_target_audience: z.array(z.string()).optional().default([]),
   course_prerequisites: z.array(z.string()).optional().default([]),

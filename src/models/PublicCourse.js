@@ -56,7 +56,7 @@ const PublicCourseSchema = new Schema(
 
     // optional link to previous course
     previous_course: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "PublicCourse",
       default: null,
     },
