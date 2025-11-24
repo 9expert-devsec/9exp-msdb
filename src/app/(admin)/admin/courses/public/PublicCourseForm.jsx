@@ -262,7 +262,7 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("folder", "courses/covers");
-      const res = await fetch("/api/uploads", { method: "POST", body: fd });
+      const res = await fetch("/api/admin/uploads", { method: "POST", body: fd });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       set("course_cover_url", data.url);
@@ -322,8 +322,8 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
       const method = item && item._id ? "PATCH" : "POST";
       const url =
         item && item._id
-          ? `/api/public-courses/${item._id}`
-          : `/api/public-courses`;
+          ? `/api/admin/public-courses/${item._id}`
+          : `/api/admin/public-courses`;
 
       const res = await fetch(url, {
         method,

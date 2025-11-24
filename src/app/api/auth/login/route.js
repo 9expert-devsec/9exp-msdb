@@ -38,7 +38,7 @@ export const POST = withRateLimit({ points: 10, duration: 60 })(async (req) => {
       name: user.name || "",
       role: user.role || "admin",
     },
-    { expiresIn: process.env.AUTH_TTL || "2h" }
+    { expiresIn: process.env.AUTH_TTL || "7d" }
   );
 
   // 5) สร้าง Response + ตั้ง cookie ปลอดภัย
@@ -53,7 +53,7 @@ export const POST = withRateLimit({ points: 10, duration: 60 })(async (req) => {
 
   // ใช้ helper จาก lib/auth.js → __Host-auth
   setAuthCookie(res, token, {
-    maxAgeSec: Number(process.env.AUTH_COOKIE_TTL_SEC || 7200),
+    maxAgeSec: Number(process.env.AUTH_COOKIE_TTL_SEC || 604800),
   });
 
   return res;
