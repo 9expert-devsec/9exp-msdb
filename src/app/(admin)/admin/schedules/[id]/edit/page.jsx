@@ -1,20 +1,29 @@
+// src/app/(admin)/admin/schedules/[id]/edit/page.jsx
+
 "use client";
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 
-export default function EditSchedulePage({ params }) {
-  const { id } = params;
+export default function EditSchedulePage() {
+  // เอา id จาก useParams แทนการรับ props.params
+  const { id } = useParams();
+
   const [loading, setLoading] = useState(true);
   const [item, setItem] = useState(null);
 
   // ค่าที่จะแก้
   const [status, setStatus] = useState("open");
   const [type, setType] = useState("classroom");
-  const [dates, setDates] = useState([]);       // ใช้คอมโพเนนท์ Calendar เดิมของคุณได้
+  const [dates, setDates] = useState([]); // ใช้คอมโพเนนท์ Calendar เดิมของคุณได้
   const [signupUrl, setSignupUrl] = useState("");
 
   useEffect(() => {
+    if (!id) return;
+
     (async () => {
-      const r = await fetch(`/api/admin/schedules/${id}`, { cache: "no-store" });
+      const r = await fetch(`/api/admin/schedules/${id}`, {
+        cache: "no-store",
+      });
       const j = await r.json();
       setItem(j.item);
       setStatus(j.item.status);
@@ -52,26 +61,46 @@ export default function EditSchedulePage({ params }) {
 
       <div className="rounded-xl border border-white/10 p-4">
         <div className="text-white/80 mb-2">
-          <div>คอร์ส: <b>{item?.course?.course_id}</b> — {item?.course?.course_name}</div>
+          <div>
+            คอร์ส: <b>{item?.course?.course_id}</b> — {item?.course?.course_name}
+          </div>
         </div>
 
         {/* status/type */}
         <div className="grid sm:grid-cols-2 gap-3">
-          <select className="rounded-lg bg-slate-900/40 px-3 py-2" value={status} onChange={(e)=>setStatus(e.target.value)}>
+          <select
+            className="rounded-lg bg-slate-900/40 px-3 py-2"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
             <option value="open">เปิดรับสมัคร</option>
             <option value="nearly_full">ใกล้เต็ม</option>
             <option value="full">เต็ม</option>
           </select>
 
           <div className="flex gap-3">
-            <button type="button"
-              className={`px-3 py-2 rounded-lg border ${type==="classroom"?"border-sky-400 text-sky-300":"border-white/15 text-white/60"}`}
-              onClick={()=>setType("classroom")}
-            >● Classroom</button>
-            <button type="button"
-              className={`px-3 py-2 rounded-lg border ${type==="hybrid"?"border-fuchsia-400 text-fuchsia-300":"border-white/15 text-white/60"}`}
-              onClick={()=>setType("hybrid")}
-            >● Hybrid</button>
+            <button
+              type="button"
+              className={`px-3 py-2 rounded-lg border ${
+                type === "classroom"
+                  ? "border-sky-400 text-sky-300"
+                  : "border-white/15 text-white/60"
+              }`}
+              onClick={() => setType("classroom")}
+            >
+              ● Classroom
+            </button>
+            <button
+              type="button"
+              className={`px-3 py-2 rounded-lg border ${
+                type === "hybrid"
+                  ? "border-fuchsia-400 text-fuchsia-300"
+                  : "border-white/15 text-white/60"
+              }`}
+              onClick={() => setType("hybrid")}
+            >
+              ● Hybrid
+            </button>
           </div>
         </div>
 
@@ -80,13 +109,16 @@ export default function EditSchedulePage({ params }) {
           className="mt-3 w-full rounded-lg bg-slate-900/40 px-3 py-2"
           placeholder="ลิงก์หน้าสมัคร (ถ้ามี)"
           value={signupUrl}
-          onChange={(e)=>setSignupUrl(e.target.value)}
+          onChange={(e) => setSignupUrl(e.target.value)}
         />
 
-        {/* ใส่คอมโพเนนท์เลือกวันของคุณไว้ตรงนี้ แล้วอัปเดต setDates([...]) */}
+        {/* TODO: component เลือกวัน → ใช้ setDates([...]) */}
 
         <div className="mt-4">
-          <button onClick={onSave} className="rounded-xl bg-emerald-500 px-4 py-2 text-white hover:bg-emerald-600">
+          <button
+            onClick={onSave}
+            className="rounded-xl bg-emerald-500 px-4 py-2 text-white hover:bg-emerald-600"
+          >
             Save
           </button>
         </div>
