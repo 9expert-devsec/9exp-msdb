@@ -52,10 +52,17 @@ export const GET = withCors(
       if (skill) where.skills = skill;
 
       const total = await OnlineCourse.countDocuments(where);
+
       const items = await OnlineCourse.find(where)
-        .select("o_course_cover_url")
-        .populate("program")
-        .populate("skills")
+        .select("-__v") // ❗ keep all fields except __v
+        .populate({
+          path: "program",
+          select: "program_name programiconurl programcolor",
+        })
+        .populate({
+          path: "skills",
+          select: "skill_name",
+        })
         .sort({ sort_order: 1, createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -66,6 +73,7 @@ export const GET = withCors(
         { status: 200 }
       );
     } catch (e) {
+      console.error("GET /api/online-courses error:", e);
       return NextResponse.json(
         { ok: false, error: e.message },
         { status: 500 }

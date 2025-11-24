@@ -2,11 +2,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function LogoutButton({ className = "" }) {
+export default function LogoutButton({ className = "", children }) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const base = "block rounded-xl px-3 py-2 transition-colors ring-1 text-left w-full";
+  const base =
+    "block rounded-xl px-3 py-2 transition-colors ring-1 text-left w-full";
   const style = "bg-white/5 ring-white/10 text-slate-200 hover:bg-white/10";
   const disabled = "opacity-60 cursor-not-allowed";
 
@@ -29,7 +30,10 @@ export default function LogoutButton({ className = "" }) {
       disabled={loading}
       className={`${base} ${style} ${loading ? disabled : ""} ${className}`}
     >
-      {loading ? "Logging out..." : "Log out"}
+      {/* ถ้ามี children ให้ใช้ children, ถ้าไม่มี ให้ใช้ข้อความเดิม */}
+      {loading
+        ? "Logging out..."
+        : children || "Log out"}
     </button>
   );
 }

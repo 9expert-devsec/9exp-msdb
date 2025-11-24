@@ -1,85 +1,258 @@
+"use client";
+
+import { useState } from "react";
 import NavLink from "@/components/NavLink";
 import LogoutButton from "@/components/LogoutButton";
-// นำเข้า Icon ที่ต้องการจาก react-icons
-import { 
-  HiOutlineHome, 
-  HiOutlineBookOpen, 
-  HiOutlineGlobeAlt, 
-  HiOutlineSparkles, 
+
+import {
+  HiOutlineHome,
+  HiOutlineBookOpen,
+  HiOutlineGlobeAlt,
+  HiOutlineSparkles,
   HiOutlineCalendar,
   HiOutlineAcademicCap,
   HiMiniCalendarDays,
-  HiOutlinePower
-} from "react-icons/hi2"; // ใช้ hi2 สำหรับ Heroicons V2
+  HiOutlinePower,
+  HiOutlineUserGroup,
+  HiOutlineBuildingOffice2,
+  HiOutlineClock,
+  HiOutlinePhone,
+  HiOutlineMegaphone,
+  HiOutlineQuestionMarkCircle,
+  HiOutlineChevronDown,
+  HiOutlineBars3,
+  HiOutlineMagnifyingGlass,
+  HiOutlineBell,
+  HiOutlineUserCircle,
+} from "react-icons/hi2";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminLayout({ children }) {
+/* Base class ของเมนู */
+const baseMenu =
+  "flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors";
+
+function NavItem({ href, icon: Icon, label, exact, sidebarOpen }) {
   return (
-    <div className="min-h-screen grid grid-cols-[240px_1fr]">
-      <aside className="bg-slate-950/80 border-r border-white/10 p-4 gap-2 flex flex-col">
-        <h1 className="text-lg font-semibold mb-4">Master Data</h1>
+    <NavLink href={href} exact={exact}>
+      <div
+        className={`${baseMenu} ${
+          sidebarOpen ? "justify-start" : "justify-center"
+        }`}
+      >
+        <Icon className="h-5 w-5" />
+        {sidebarOpen && <span>{label}</span>}
+      </div>
+    </NavLink>
+  );
+}
 
-        {/* เพิ่ม Icon ใน NavLink และจัดรูปแบบให้สวยงาม */}
-        <NavLink href="/admin/dashboard" exact>
-          <div className="flex items-center gap-2">
-            <HiOutlineHome className="h-5 w-5" /> 
-            Dashboard
-          </div>
-        </NavLink>
-        
-        <NavLink href="/admin/courses/public">
-          <div className="flex items-center gap-2">
-            <HiOutlineGlobeAlt className="h-5 w-5" />
-            Public Courses
-          </div>
-        </NavLink>
-        
-        <NavLink href="/admin/courses/online">
-          <div className="flex items-center gap-2">
-            <HiOutlineBookOpen className="h-5 w-5" />
-            Online Courses
-          </div>
-        </NavLink>
-        
-        <NavLink href="/admin/programs">
-          <div className="flex items-center gap-2">
-            <HiOutlineAcademicCap className="h-5 w-5" />
-            Programs
-          </div>
-        </NavLink>
-        
-        <NavLink href="/admin/skills">
-          <div className="flex items-center gap-2">
-            <HiOutlineSparkles className="h-5 w-5" />
-            Skills
-          </div>
-        </NavLink>
-        
-        <NavLink href="/admin/events">
-          <div className="flex items-center gap-2">
-            <HiOutlineCalendar className="h-5 w-5" />
-            Events
-          </div>
-        </NavLink>
-        
-        <NavLink href="/admin/schedules">
-          <div className="flex items-center gap-2">
-            <HiMiniCalendarDays className="h-5 w-5" />
-            Schedules
-          </div>
-        </NavLink>
+export default function AdminLayout({ children }) {
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-        <div className="h-px bg-white/10 my-2" />
+  const sidebarWidth = sidebarOpen ? 240 : 72;
 
-        {/* ปุ่ม Logout หน้าตาเหมือนเมนู */}
-        <div className="flex items-center gap-2 cursor-pointer">
-          <HiOutlinePower className="h-5 w-5" />
-          <LogoutButton />
+  return (
+    <div className="min-h-screen flex bg-slate-950">
+      {/* TOPBAR */}
+      <header className="fixed top-0 left-0 right-0 h-14 bg-slate-900/70 backdrop-blur border-b border-white/10 flex items-center px-4 z-40">
+        <button
+          onClick={() => setSidebarOpen((v) => !v)}
+          className="mr-4 rounded-full bg-slate-800/60 border border-white/10 p-2 hover:bg-slate-700 transition"
+        >
+          <HiOutlineBars3 className="h-5 w-5 text-white" />
+        </button>
+
+        {/* Search Box */}
+        <div className="flex items-center bg-slate-800/50 border border-white/10 rounded-xl px-3 py-1 w-80 max-w-xs">
+          <HiOutlineMagnifyingGlass className="h-4 w-4 text-slate-300" />
+          <input
+            type="text"
+            placeholder="Search..."
+            className="bg-transparent w-full px-2 py-1 text-sm text-slate-200 focus:outline-none"
+          />
         </div>
-      </aside>
 
-      <main className="p-6">{children}</main>
+        <div className="ml-auto flex items-center gap-4">
+          <HiOutlineBell className="h-6 w-6 text-slate-200 cursor-pointer hover:text-white" />
+          <HiOutlineUserCircle className="h-7 w-7 text-slate-200 cursor-pointer hover:text-white" />
+        </div>
+      </header>
+
+      {/* PAGE LAYOUT */}
+      <div className="flex pt-14 w-full">
+        {/* SIDEBAR */}
+        <aside
+          style={{ width: sidebarWidth }}
+          className="bg-[#050b24] border-r border-slate-900 p-4 flex flex-col gap-4 transition-[width] duration-300 ease-in-out
+          sticky top-14 h-[calc(100vh-3.5rem)]"
+        >
+          {/* LOGO */}
+          <div className="flex items-center gap-2 px-2">
+            <div className="h-9 w-9 rounded-full bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center text-xs font-semibold text-emerald-200">
+              9E
+            </div>
+            {sidebarOpen && (
+              <span className="text-lg font-semibold tracking-wide">
+                9Exp-Sec
+              </span>
+            )}
+          </div>
+
+          {/* MENU CONTENT */}
+          <nav className="space-y-3 flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+
+            {/* GROUP 1 */}
+            {sidebarOpen && (
+              <div className="text-[11px] uppercase font-semibold tracking-wider text-slate-500 px-3">
+                Main Menu
+              </div>
+            )}
+
+            <NavItem
+              href="/admin/dashboard"
+              icon={HiOutlineHome}
+              label="Dashboard"
+              exact
+              sidebarOpen={sidebarOpen}
+            />
+
+            <NavItem
+              href="/admin/courses/public"
+              icon={HiOutlineGlobeAlt}
+              label="Public Courses"
+              sidebarOpen={sidebarOpen}
+            />
+
+            <NavItem
+              href="/admin/courses/online"
+              icon={HiOutlineBookOpen}
+              label="Online Courses"
+              sidebarOpen={sidebarOpen}
+            />
+
+            {/* GROUP 2 */}
+            {sidebarOpen && (
+              <div className="mt-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500 px-3">
+                Course Settings
+              </div>
+            )}
+
+            <NavItem
+              href="/admin/programs"
+              icon={HiOutlineAcademicCap}
+              label="Programs"
+              sidebarOpen={sidebarOpen}
+            />
+
+            <NavItem
+              href="/admin/skills"
+              icon={HiOutlineSparkles}
+              label="Skills"
+              sidebarOpen={sidebarOpen}
+            />
+
+            <NavItem
+              href="/admin/events"
+              icon={HiOutlineCalendar}
+              label="Events"
+              sidebarOpen={sidebarOpen}
+            />
+
+            <NavItem
+              href="/admin/schedules"
+              icon={HiMiniCalendarDays}
+              label="Schedules"
+              sidebarOpen={sidebarOpen}
+            />
+
+            <NavItem
+              href="/admin/instructors"
+              icon={HiOutlineUserGroup}
+              label="Instructor"
+              sidebarOpen={sidebarOpen}
+            />
+
+            {/* GROUP 3 */}
+            {sidebarOpen && (
+              <div className="mt-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500 px-3">
+                About
+              </div>
+            )}
+
+            {/* 9Expert Info */}
+            <div>
+              <button
+                onClick={() => setIsInfoOpen((v) => !v)}
+                className={`${baseMenu} ${
+                  sidebarOpen
+                    ? "justify-between text-slate-300 hover:text-white hover:bg-slate-900/40 rounded-lg"
+                    : "justify-center"
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <HiOutlineBuildingOffice2 className="h-5 w-5" />
+                  {sidebarOpen && "9Expert Info"}
+                </span>
+
+                {sidebarOpen && (
+                  <HiOutlineChevronDown
+                    className={`h-4 w-4 transition-transform ${
+                      isInfoOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                )}
+              </button>
+
+              {/* SUBMENU */}
+              {sidebarOpen && isInfoOpen && (
+                <div className="ml-6 mt-2 flex flex-col gap-1">
+                  <NavItem
+                    href="/admin/9expert/history"
+                    icon={HiOutlineClock}
+                    label="History"
+                    sidebarOpen={sidebarOpen}
+                  />
+                  <NavItem
+                    href="/admin/9expert/contact"
+                    icon={HiOutlinePhone}
+                    label="Contact Us"
+                    sidebarOpen={sidebarOpen}
+                  />
+                  <NavItem
+                    href="/admin/9expert/promotion"
+                    icon={HiOutlineMegaphone}
+                    label="Promotion"
+                    sidebarOpen={sidebarOpen}
+                  />
+                  <NavItem
+                    href="/admin/9expert/faq"
+                    icon={HiOutlineQuestionMarkCircle}
+                    label="FAQ"
+                    sidebarOpen={sidebarOpen}
+                  />
+                </div>
+              )}
+            </div>
+          </nav>
+
+          {/* LOGOUT */}
+          <LogoutButton>
+            <div
+              className={`${baseMenu} ${
+                sidebarOpen ? "justify-start" : "justify-center"
+              } rounded-lg text-slate-300 hover:text-white hover:bg-slate-900/40`}
+            >
+              <HiOutlinePower className="h-5 w-5" />
+              {sidebarOpen && <span>Log out</span>}
+            </div>
+          </LogoutButton>
+        </aside>
+
+        {/* MAIN CONTENT */}
+        <main className="flex-1 p-6">{children}</main>
+      </div>
     </div>
   );
 }

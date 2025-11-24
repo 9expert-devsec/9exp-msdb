@@ -7,20 +7,10 @@ import "@/models/Skill";
 
 import { withCors } from "@/lib/cors";
 import { withRateLimit } from "@/lib/ratelimit";
-import { requireRole } from "@/lib/requireRole";
+// ตอนนี้ GET ยังไม่ requireRole ถ้าอยากล็อกเฉพาะหลังบ้านค่อยเพิ่มทีหลัง
+// import { requireRole } from "@/lib/requireRole";
 
 /* ---------------- helpers ---------------- */
-const cleanArray = (a) =>
-  Array.isArray(a) ? a.map((s) => String(s).trim()).filter(Boolean) : [];
-
-const cleanTopics = (arr) =>
-  Array.isArray(arr)
-    ? arr.map((t) => ({
-        title: String(t?.title || "").trim(),
-        bullets: cleanArray(t?.bullets),
-      }))
-    : [];
-
 const toInt = (v, d = 0) => {
   const n = parseInt(v, 10);
   return Number.isFinite(n) ? n : d;
@@ -49,22 +39,34 @@ export const GET = withCors(
       if (q) filter.$text = { $search: q };
 
       const total = await PublicCourse.countDocuments(filter);
+
       const items = await PublicCourse.find(filter)
-        .select("course_cover_url")
-        .populate("program")
-        .populate("skills")
-        .populate("previous_course")
+        // ❌ อย่า .select("course_cover_url") ถ้าหน้าแอดมินต้องใช้ฟิลด์อื่น
+        // ถ้าอยากตัด __v ทิ้งก็ทำแบบนี้แทน:
+        .select("-__v")
+        .populate({
+          path: "program",
+          select: "program_name programiconurl programcolor",
+        })
+        .populate({
+          path: "skills",
+          select: "skill_name", // ถ้าอยากได้ icon/สีเพิ่มค่อยเติม
+        })
+        .populate({
+          path: "previous_course",
+          select: "course_name course_id",
+        })
         .sort({ sort_order: 1, course_name: 1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .lean();
 
-      // หมายเหตุ: ถ้าต้องการลดข้อมูลที่เปิดเผย ให้ .select(...) เฉพาะฟิลด์ที่จำเป็น
       return NextResponse.json(
         { ok: true, total, page, limit, items },
         { status: 200 }
       );
     } catch (e) {
+      console.error("GET /api/public-courses error:", e);
       return NextResponse.json(
         { ok: false, error: e.message || "Internal error" },
         { status: 500 }
