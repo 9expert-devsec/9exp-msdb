@@ -164,7 +164,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("folder", "online/covers"); // แยกโฟลเดอร์จาก public
-      const res = await fetch("/api/admin/uploads", { method: "POST", body: fd });
+      const res = await fetch("/api/uploads", { method: "POST", body: fd });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       set("o_course_cover_url", data.url);
