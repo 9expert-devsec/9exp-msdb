@@ -7,7 +7,7 @@ export default function LogoutButton({ className = "", children }) {
   const router = useRouter();
 
   const base =
-    "block rounded-xl px-3 py-2 transition-colors ring-1 text-left w-full";
+    "block rounded-xl px-2 py-2 transition-colors ring-1 text-left w-full";
   const style = "bg-white/5 ring-white/10 text-slate-200 hover:bg-white/10";
   const disabled = "opacity-60 cursor-not-allowed";
 

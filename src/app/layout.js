@@ -1,6 +1,15 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import localFont from "next/font/local";
+
+const lineSeedSans = localFont({
+  src: [
+    { path: "../../public/fonts/line-seed/LINESeedSansTH_W_Rg.woff2", weight: "400", style: "normal" },
+    { path: "../../public/fonts/line-seed/LINESeedSansTH_W_Bd.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-line-seed",
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,10 +51,8 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="th" className={`${lineSeedSans.variable}`}>
+      <body>
         {children}
         <SpeedInsights />
       </body>

@@ -285,6 +285,7 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
         ...form,
         // ถ้าเป็นการแก้ไข ให้แนบ _id ไปให้ PATCH ใช้
         ...(item && item._id ? { _id: item._id } : {}),
+
         course_trainingdays: +form.course_trainingdays || 0,
         course_traininghours: +form.course_traininghours || 0,
         course_price: form.course_price === "" ? 0 : +form.course_price,
@@ -300,7 +301,7 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
         course_prerequisites: parseLines(form.course_prerequisites),
         course_system_requirements: parseLines(form.course_system_requirements),
 
-        // topics — clean ช่องว่างที่ submit
+        // topics (หัวข้อ + หัวย่อย)
         training_topics: (form.training_topics || []).map((t) => ({
           title: (t.title || "").trim(),
           bullets: (t.bullets || [])
@@ -308,7 +309,7 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
             .filter(Boolean),
         })),
 
-        // URLs — clean ช่องว่างที่ submit
+        // URLs
         course_doc_paths: cleanArray(form.course_doc_paths),
         course_lab_paths: cleanArray(form.course_lab_paths),
         course_case_study_paths: cleanArray(form.course_case_study_paths),
@@ -318,25 +319,36 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
         // relations
         program: form.program || null,
         skills: form.skills || [],
-        previous_course: form.previous_course || null,
+
+        // previous course (optional)
+        ...(form.previous_course
+          ? { previous_course: form.previous_course }
+          : {}),
       };
 
       const method = item && item._id ? "PATCH" : "POST";
-      const url = `/api/admin/public-courses`; // ใช้ path เดียวกัน
+      const url = `/api/admin/public-courses`;
 
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(await res.text());
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `Request failed (${res.status})`);
+      }
+
       onSaved?.();
     } catch (e) {
-      alert(e.message);
+      console.error(e);
+      alert(e.message || String(e));
     } finally {
       setSaving(false);
     }
   };
+
 
   /* ---------- UI ---------- */
   return (

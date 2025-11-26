@@ -1,24 +1,22 @@
-// /src/app/api/admin/public-courses/route.js
+// src/app/api/admin/public-courses/route.js
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import PublicCourse from "@/models/PublicCourse";
 import "@/models/Program";
 import "@/models/Skill";
-
 import { requireRole } from "@/lib/requireRole";
 import { withRateLimit } from "@/lib/ratelimit";
 import { z } from "zod";
 
-/* ---------------- helpers ---------------- */
+/* ---------- helpers ---------- */
 const cleanArray = (a) =>
-  Array.isArray(a) ? a.map((s) => String(s).trim()).filter(Boolean) : [];
-
-const cleanTopics = (arr) =>
-  Array.isArray(arr)
-    ? arr.map((t) => ({
-        title: String(t?.title || "").trim(),
-        bullets: cleanArray(t?.bullets),
-      }))
+  Array.isArray(a)
+    ? a.map((s) => String(s).trim()).filter(Boolean)
+    : typeof a === "string"
+    ? String(a)
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
     : [];
 
 const toInt = (v, d = 0) => {
@@ -26,139 +24,149 @@ const toInt = (v, d = 0) => {
   return Number.isFinite(n) ? n : d;
 };
 
-/* ---------------- validation (Zod) ---------------- */
-const CourseSchema = z.object({
-  program: z.string().trim().optional(),
-  skills: z.array(z.string()).optional().default([]),
-  previous_course: z.string().trim().optional(),
+const normalizeNumber = (v, nullable = false) => {
+  if (v === "" || v == null) return nullable ? null : 0;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return nullable ? null : 0;
+  return n;
+};
 
-  course_id: z.string().min(1, "course_id is required"),
-  course_name: z.string().min(1, "course_name is required"),
-  course_teaser: z.string().optional().default(""),
+/* ---------- Zod schema ตาม PublicCourse ---------- */
 
-  // ✅ Cover image URL (อนุญาตให้ว่าง "")
-  course_cover_url: z
-    .union([z.string().url(), z.literal("")])
-    .optional()
-    .default(""),
-
-  // ✅ Level
-  course_levels: z.string().optional().default("1"),
-
-  // ✅ Flags / Status ต่าง ๆ
-  course_type_public: z.boolean().optional().default(true),
-  course_type_inhouse: z.boolean().optional().default(false),
-  course_workshop_status: z.boolean().optional().default(false),
-  course_certificate_status: z.boolean().optional().default(false),
-  course_promote_status: z.boolean().optional().default(false),
-
-  // ✅ อันเดิม
-  course_objectives: z.array(z.string()).optional().default([]),
-  course_target_audience: z.array(z.string()).optional().default([]),
-  course_prerequisites: z.array(z.string()).optional().default([]),
-  course_system_requirements: z.array(z.string()).optional().default([]),
-  training_topics: z
-    .array(
-      z.object({
-        title: z.string().optional().default(""),
-        bullets: z.array(z.string()).optional().default([]),
-      })
-    )
-    .optional()
-    .default([]),
-
-  course_doc_paths: z.array(z.string()).optional().default([]),
-  course_lab_paths: z.array(z.string()).optional().default([]),
-  course_case_study_paths: z.array(z.string()).optional().default([]),
-  website_urls: z.array(z.string()).optional().default([]),
-  exam_links: z.array(z.string()).optional().default([]),
-
-  course_trainingdays: z.coerce
-    .number()
-    .int()
-    .nonnegative()
-    .optional()
-    .default(0),
-  course_traininghours: z.coerce
-    .number()
-    .int()
-    .nonnegative()
-    .optional()
-    .default(0),
-  course_price: z.coerce.number().int().nonnegative().optional().default(0),
-  course_netprice: z
-    .union([z.coerce.number().int().nonnegative(), z.null()])
-    .optional()
-    .default(null),
-  sort_order: z.coerce.number().int().optional().default(0),
-
-  published: z.boolean().optional().default(false),
+const TopicSchema = z.object({
+  title: z.string().optional().default(""),
+  bullets: z.array(z.string()).optional().default([]),
 });
 
-/* ---------------- POST /api/admin/public-courses (Create) ---------------- */
+const PublicCourseSchema = z
+  .object({
+    course_id: z.string().min(1),
+    course_name: z.string().min(1),
+    course_teaser: z.string().optional().default(""),
+
+    // เวลา / ราคา / ระดับ
+    course_trainingdays: z.coerce.number().int().optional().default(0),
+    course_traininghours: z.coerce.number().int().optional().default(0),
+    course_price: z.coerce.number().optional().default(0),
+    course_netprice: z
+      .union([z.coerce.number(), z.null()])
+      .optional()
+      .nullable()
+      .transform((v) => (v === undefined ? null : v)),
+    course_cover_url: z.string().optional().default(""),
+    course_levels: z.string().optional().default("1"),
+
+    // flags
+    course_type_public: z.boolean().optional().default(true),
+    course_type_inhouse: z.boolean().optional().default(false),
+    course_workshop_status: z.boolean().optional().default(false),
+    course_certificate_status: z.boolean().optional().default(false),
+    course_promote_status: z.boolean().optional().default(false),
+
+    // ความสัมพันธ์
+    program: z.string().optional(),
+    skills: z.array(z.string()).optional().default([]),
+
+    sort_order: z.coerce.number().int().optional().default(0),
+
+    // bullets หลัก
+    course_objectives: z.array(z.string()).optional().default([]),
+    course_target_audience: z.array(z.string()).optional().default([]),
+    course_prerequisites: z.array(z.string()).optional().default([]),
+    course_system_requirements: z.array(z.string()).optional().default([]),
+
+    // training topics (หัวข้อ + หัวย่อย)
+    training_topics: z
+      .array(TopicSchema)
+      .optional()
+      .default([])
+      .transform((arr) =>
+        (arr || []).map((t) => ({
+          title: (t.title || "").trim(),
+          bullets: (t.bullets || [])
+            .map((b) => (b || "").trim())
+            .filter(Boolean),
+        }))
+      ),
+
+    // เอกสาร / URL
+    course_doc_paths: z.array(z.string()).optional().default([]),
+    course_lab_paths: z.array(z.string()).optional().default([]),
+    course_case_study_paths: z.array(z.string()).optional().default([]),
+    website_urls: z.array(z.string()).optional().default([]),
+    exam_links: z.array(z.string()).optional().default([]),
+
+    // previous course (ObjectId ใน DB, รับเป็น string id)
+    previous_course: z.string().optional(),
+  })
+  .passthrough();
+
+/* ---------- CREATE ---------- */
 export const POST = withRateLimit({ points: 10, duration: 60 })(async (req) => {
   try {
     await requireRole(req, ["admin", "editor"]);
     await dbConnect();
 
-    // ใช้ raw body แล้ว parse → กันกรณี partner จะเซ็น HMAC ในอนาคต
-    const raw = await req.text();
-    const json = raw ? JSON.parse(raw) : {};
+    const json = await req.json();
 
-    // normalize ให้สะอาดก่อน validate
+    // normalize
+    json.skills = cleanArray(json.skills);
+    json.sort_order = toInt(json.sort_order, 0);
+
+    json.course_trainingdays = normalizeNumber(json.course_trainingdays, false);
+    json.course_traininghours = normalizeNumber(
+      json.course_traininghours,
+      false
+    );
+    json.course_price = normalizeNumber(json.course_price, false);
+    json.course_netprice = normalizeNumber(json.course_netprice, true);
+
     json.course_objectives = cleanArray(json.course_objectives);
     json.course_target_audience = cleanArray(json.course_target_audience);
     json.course_prerequisites = cleanArray(json.course_prerequisites);
     json.course_system_requirements = cleanArray(
       json.course_system_requirements
     );
-    json.training_topics = cleanTopics(json.training_topics);
+
     json.course_doc_paths = cleanArray(json.course_doc_paths);
     json.course_lab_paths = cleanArray(json.course_lab_paths);
     json.course_case_study_paths = cleanArray(json.course_case_study_paths);
     json.website_urls = cleanArray(json.website_urls);
     json.exam_links = cleanArray(json.exam_links);
 
-    // ✅ ใหม่: เคลียร์ค่า course_cover_url (trim แล้วถ้าว่างให้เป็น "")
-    json.course_cover_url = (json.course_cover_url || "").trim();
+    // ❗ ถ้า previous_course ว่าง ให้ลบ field ทิ้งกัน cast error
+    if (!json.previous_course) {
+      delete json.previous_course;
+    }
 
-    // number fields
-    json.course_trainingdays = toInt(json.course_trainingdays, 0);
-    json.course_traininghours = toInt(json.course_traininghours, 0);
-    json.course_price = toInt(json.course_price, 0);
-    json.sort_order = toInt(json.sort_order, 0);
-    json.course_netprice =
-      json.course_netprice === "" || json.course_netprice == null
-        ? null
-        : toInt(json.course_netprice, null);
-
-    const input = CourseSchema.parse(json);
+    const input = PublicCourseSchema.parse(json);
     const created = await PublicCourse.create(input);
 
     const item = await PublicCourse.findById(created._id)
-      .populate("program")
-      .populate("skills")
-      .populate("previous_course")
+      .populate(
+        "program",
+        "program_id program_name programiconurl programcolor"
+      )
+      .populate("skills", "skill_id skill_name skilliconurl skillcolor")
+      .populate("previous_course", "course_id course_name")
       .lean();
 
     return NextResponse.json({ ok: true, item }, { status: 201 });
   } catch (e) {
-    if (e instanceof Response) return e; // ปล่อย 401/403 จาก requireRole ตรงๆ
-    console.error("❌ Create error:", e);
+    if (e instanceof Response) return e;
+    console.error("Create PublicCourse error:", e);
     const msg = e?.errors?.[0]?.message || e?.message || "Create failed";
-    const code = /Unauthorized|Forbidden/i.test(msg) ? 401 : 400;
-    return NextResponse.json({ ok: false, error: msg }, { status: code });
+    return NextResponse.json({ ok: false, error: msg }, { status: 400 });
   }
 });
 
-/* ---------------- PATCH /api/admin/public-courses (Update by _id) ---------------- */
+/* ---------- UPDATE ---------- */
 export const PATCH = withRateLimit({ points: 20, duration: 60 })(async (req) => {
   try {
     await requireRole(req, ["admin", "editor"]);
     await dbConnect();
 
-    const raw = await req.text();
-    const json = raw ? JSON.parse(raw) : {};
+    const json = await req.json();
     const id = String(json?._id || "").trim();
     if (!id) {
       return NextResponse.json(
@@ -167,73 +175,86 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(async (req) => 
       );
     }
 
-    // ทำความสะอาดเหมือน POST
-    json.course_objectives = cleanArray(json.course_objectives);
-    json.course_target_audience = cleanArray(json.course_target_audience);
-    json.course_prerequisites = cleanArray(json.course_prerequisites);
-    json.course_system_requirements = cleanArray(
-      json.course_system_requirements
-    );
-    json.training_topics = cleanTopics(json.training_topics);
-    json.course_doc_paths = cleanArray(json.course_doc_paths);
-    json.course_lab_paths = cleanArray(json.course_lab_paths);
-    json.course_case_study_paths = cleanArray(json.course_case_study_paths);
-    json.website_urls = cleanArray(json.website_urls);
-    json.exam_links = cleanArray(json.exam_links);
+    if ("skills" in json) json.skills = cleanArray(json.skills);
+    if ("sort_order" in json) json.sort_order = toInt(json.sort_order, 0);
 
-    // ✅ ใหม่: เคลียร์ค่า course_cover_url ตอน edit เช่นกัน
-    if (json.course_cover_url !== undefined) {
-      json.course_cover_url = (json.course_cover_url || "").trim();
+    if ("course_trainingdays" in json)
+      json.course_trainingdays = normalizeNumber(
+        json.course_trainingdays,
+        false
+      );
+    if ("course_traininghours" in json)
+      json.course_traininghours = normalizeNumber(
+        json.course_traininghours,
+        false
+      );
+    if ("course_price" in json)
+      json.course_price = normalizeNumber(json.course_price, false);
+    if ("course_netprice" in json)
+      json.course_netprice = normalizeNumber(json.course_netprice, true);
+
+    if ("course_objectives" in json)
+      json.course_objectives = cleanArray(json.course_objectives);
+    if ("course_target_audience" in json)
+      json.course_target_audience = cleanArray(json.course_target_audience);
+    if ("course_prerequisites" in json)
+      json.course_prerequisites = cleanArray(json.course_prerequisites);
+    if ("course_system_requirements" in json)
+      json.course_system_requirements = cleanArray(
+        json.course_system_requirements
+      );
+
+    if ("course_doc_paths" in json)
+      json.course_doc_paths = cleanArray(json.course_doc_paths);
+    if ("course_lab_paths" in json)
+      json.course_lab_paths = cleanArray(json.course_lab_paths);
+    if ("course_case_study_paths" in json)
+      json.course_case_study_paths = cleanArray(json.course_case_study_paths);
+    if ("website_urls" in json)
+      json.website_urls = cleanArray(json.website_urls);
+    if ("exam_links" in json) json.exam_links = cleanArray(json.exam_links);
+
+    // ❗ ถ้า previous_course ไม่มีค่า → ลบ field เพื่อให้ mongoose เคลียร์ให้
+    if (!json.previous_course) {
+      delete json.previous_course;
     }
 
-    json.course_trainingdays = toInt(json.course_trainingdays, 0);
-    json.course_traininghours = toInt(json.course_traininghours, 0);
-    json.course_price = toInt(json.course_price, 0);
-    json.sort_order = toInt(json.sort_order, 0);
-    json.course_netprice =
-      json.course_netprice === "" || json.course_netprice == null
-        ? null
-        : toInt(json.course_netprice, null);
+    const updates = PublicCourseSchema.partial().parse(json);
 
-    // validate แบบ partial (ยกเว้น _id)
-    const PartialSchema = CourseSchema.partial().extend({ _id: z.string() });
-    const input = PartialSchema.parse({ ...json, _id: id });
-
-    const { _id, ...updates } = input;
-    const updated = await PublicCourse.findByIdAndUpdate(_id, updates, {
+    const item = await PublicCourse.findByIdAndUpdate(id, updates, {
       new: true,
-      runValidators: false, // เรา validate ด้วย zod แล้ว
     })
-      .populate("program")
-      .populate("skills")
-      .populate("previous_course")
+      .populate(
+        "program",
+        "program_id program_name programiconurl programcolor"
+      )
+      .populate("skills", "skill_id skill_name skilliconurl skillcolor")
+      .populate("previous_course", "course_id course_name")
       .lean();
 
-    if (!updated) {
+    if (!item) {
       return NextResponse.json(
         { ok: false, error: "Not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ ok: true, item: updated }, { status: 200 });
+    return NextResponse.json({ ok: true, item }, { status: 200 });
   } catch (e) {
-    if (e instanceof Response) return e; // ปล่อย 401/403 จาก requireRole ตรงๆ
-    console.error("❌ Update error:", e);
+    if (e instanceof Response) return e;
+    console.error("Update PublicCourse error:", e);
     const msg = e?.errors?.[0]?.message || e?.message || "Update failed";
-    const code = /Unauthorized|Forbidden/i.test(msg) ? 401 : 400;
-    return NextResponse.json({ ok: false, error: msg }, { status: code });
+    return NextResponse.json({ ok: false, error: msg }, { status: 400 });
   }
 });
 
-/* ---------------- DELETE /api/admin/public-courses (Delete by _id) ---------------- */
+/* ---------- DELETE (by ?id=) ---------- */
 export const DELETE = withRateLimit({ points: 10, duration: 60 })(async (req) => {
   try {
-    await requireRole(req, ["admin"]); // ลบ จำกัดเฉพาะ admin
+    await requireRole(req, ["admin"]);
     await dbConnect();
 
-    const { searchParams } = new URL(req.url);
-    const id = String(searchParams.get("id") || "").trim();
+    const id = new URL(req.url).searchParams.get("id");
     if (!id) {
       return NextResponse.json(
         { ok: false, error: "id is required" },
@@ -248,12 +269,12 @@ export const DELETE = withRateLimit({ points: 10, duration: 60 })(async (req) =>
         { status: 404 }
       );
     }
+
     return NextResponse.json({ ok: true, id }, { status: 200 });
   } catch (e) {
-    if (e instanceof Response) return e; // ปล่อย 401/403 จาก requireRole ตรงๆ
-    console.error("❌ Delete error:", e);
-    const msg = e?.errors?.[0]?.message || e?.message || "Delete failed";
-    const code = /Unauthorized|Forbidden/i.test(msg) ? 401 : 400;
-    return NextResponse.json({ ok: false, error: msg }, { status: code });
+    if (e instanceof Response) return e;
+    console.error("Delete PublicCourse error:", e);
+    const msg = e?.message || "Delete failed";
+    return NextResponse.json({ ok: false, error: msg }, { status: 400 });
   }
 });

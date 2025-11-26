@@ -22,21 +22,28 @@ const DEFAULT = {
   o_course_workshop_status: false,
   o_course_certificate_status: false,
   o_course_promote_status: false,
+
   o_course_objectives: "",
   o_course_target_audience: "",
   o_course_prerequisites: "",
   o_course_system_requirements: "",
-  o_course_training_topics: "",
+
+  // topics แบบ object (หัวข้อ + ย่อย)
+  o_course_training_topics: [],
 
   // multi-URL fields (1 บรรทัด = 1 URL)
   o_course_doc_paths: "",
   o_course_lab_paths: "",
   o_course_case_study_paths: "",
+  website_urls: "",
+  exam_links: "",
 
   sort_order: 0,
 
   program: "",
   skills: [],
+
+  previous_course: "",
 };
 
 /* ---------- tiny helpers ---------- */
@@ -63,6 +70,76 @@ const BulletHint = ({ title }) => (
   </div>
 );
 
+/* ---------- editor: training topics (with sub-bullets) ---------- */
+function TopicsEditor({ value = [], onChange }) {
+  const addTopic = () =>
+    onChange([...(value || []), { title: "", bullets: [] }]);
+
+  const removeTopic = (idx) => {
+    const a = [...value];
+    a.splice(idx, 1);
+    onChange(a);
+  };
+
+  const setTopicTitle = (idx, t) => {
+    const a = [...value];
+    a[idx] = { ...(a[idx] || {}), title: t };
+    onChange(a);
+  };
+
+  const setTopicBullets = (idx, text) => {
+    const bullets = (text || "").split("\n").map((s) => s);
+    const a = [...value];
+    a[idx] = { ...(a[idx] || {}), bullets };
+    onChange(a);
+  };
+
+  return (
+    <div className="space-y-3">
+      {(value || []).map((t, i) => (
+        <div
+          key={i}
+          className="rounded-lg bg-white/5 ring-1 ring-white/10 p-3 space-y-2"
+        >
+          <div className="flex items-center gap-2">
+            <FieldLabel>หัวข้อที่ {i + 1}</FieldLabel>
+            <button
+              type="button"
+              className="ml-auto text-xs px-2 py-1 rounded bg-red-500/80 hover:bg-red-500"
+              onClick={() => removeTopic(i)}
+            >
+              ลบหัวข้อนี้
+            </button>
+          </div>
+          <input
+            className="input"
+            placeholder="Topic title..."
+            value={t?.title || ""}
+            onChange={(e) => setTopicTitle(i, e.target.value)}
+          />
+          <div>
+            <FieldLabel hint="1 บรรทัด = 1 ย่อย">หัวข้อย่อย</FieldLabel>
+            <textarea
+              className="textarea min-h-[100px]"
+              placeholder="ใส่เป็นบรรทัดละ 1 ย่อย"
+              value={(t?.bullets || []).join("\n")}
+              onChange={(e) => setTopicBullets(i, e.target.value)}
+            />
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="rounded-lg px-3 py-2 bg-white/10 hover:bg-white/20"
+        onClick={addTopic}
+      >
+        + เพิ่มหัวข้อ
+      </button>
+    </div>
+  );
+}
+
+/* ---------- counter ---------- */
 const useLinesCounter = (form) => {
   const parse = (t) =>
     (t || "")
@@ -75,20 +152,22 @@ const useLinesCounter = (form) => {
       aud: parse(form.o_course_target_audience).length,
       pre: parse(form.o_course_prerequisites).length,
       sys: parse(form.o_course_system_requirements).length,
-      top: parse(form.o_course_training_topics).length,
       doc: parse(form.o_course_doc_paths).length,
       lab: parse(form.o_course_lab_paths).length,
       cs: parse(form.o_course_case_study_paths).length,
+      web: parse(form.website_urls).length,
+      exam: parse(form.exam_links).length,
     }),
     [
       form.o_course_objectives,
       form.o_course_target_audience,
       form.o_course_prerequisites,
       form.o_course_system_requirements,
-      form.o_course_training_topics,
       form.o_course_doc_paths,
       form.o_course_lab_paths,
       form.o_course_case_study_paths,
+      form.website_urls,
+      form.exam_links,
     ]
   );
 };
@@ -97,6 +176,8 @@ const useLinesCounter = (form) => {
 export default function OnlineCourseForm({ item = {}, onSaved }) {
   const [programs, setPrograms] = useState([]);
   const [skills, setSkills] = useState([]);
+  const [allCourses, setAllCourses] = useState([]);
+
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState("");
@@ -115,14 +196,17 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
   /* ---------- load options ---------- */
   useEffect(() => {
     (async () => {
-      const [pg, sk] = await Promise.all([
+      const [pg, sk, co] = await Promise.all([
         fetch("/api/programs").then((r) => r.json()),
         fetch("/api/skills").then((r) => r.json()),
+        fetch("/api/online-courses?limit=1000").then((r) => r.json()),
       ]);
       setPrograms(pg.items || []);
       setSkills(sk.items || []);
+      setAllCourses((co.items || []).filter((c) => c._id !== item?._id));
     })();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?._id]);
 
   /* ---------- load item ---------- */
   useEffect(() => {
@@ -133,17 +217,27 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
       ...DEFAULT,
       ...item,
 
-      // normalize text-fields (array -> textarea)
       o_course_objectives: toText(item.o_course_objectives),
       o_course_target_audience: toText(item.o_course_target_audience),
       o_course_prerequisites: toText(item.o_course_prerequisites),
       o_course_system_requirements: toText(item.o_course_system_requirements),
-      o_course_training_topics: toText(item.o_course_training_topics),
 
-      // url-list fields
+      o_course_training_topics: Array.isArray(item.o_course_training_topics)
+        ? item.o_course_training_topics.map((t) =>
+            typeof t === "string"
+              ? { title: t, bullets: [] }
+              : {
+                  title: t.title || "",
+                  bullets: Array.isArray(t.bullets) ? t.bullets : [],
+                }
+          )
+        : [],
+
       o_course_doc_paths: toText(item.o_course_doc_paths),
       o_course_lab_paths: toText(item.o_course_lab_paths),
       o_course_case_study_paths: toText(item.o_course_case_study_paths),
+      website_urls: toText(item.website_urls),
+      exam_links: toText(item.exam_links),
 
       program: item?.program?._id || item?.program || "",
       skills: Array.isArray(item?.skills)
@@ -152,6 +246,12 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
 
       o_course_levels: item.o_course_levels || "1",
       sort_order: item.sort_order ?? 0,
+
+      previous_course:
+        item?.previous_course?._id ||
+        (typeof item?.previous_course === "string"
+          ? item.previous_course
+          : ""),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item]);
@@ -163,7 +263,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("folder", "online/covers"); // แยกโฟลเดอร์จาก public
+      fd.append("folder", "online/covers");
       const res = await fetch("/api/uploads", { method: "POST", body: fd });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -183,10 +283,8 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
       const payload = {
         ...form,
 
-        // numeric
         o_number_lessons: +form.o_number_lessons || 0,
         o_course_traininghours: +form.o_course_traininghours || 0,
-        // สำหรับ compatibility กับ field เก่า o_traininghours
         o_traininghours: +form.o_course_traininghours || 0,
         o_course_price:
           form.o_course_price === "" ? 0 : +form.o_course_price,
@@ -196,28 +294,38 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
             : +form.o_course_netprice,
         sort_order: +form.sort_order || 0,
 
-        // arrays
         o_course_objectives: parseLines(form.o_course_objectives),
         o_course_target_audience: parseLines(form.o_course_target_audience),
         o_course_prerequisites: parseLines(form.o_course_prerequisites),
         o_course_system_requirements: parseLines(
           form.o_course_system_requirements
         ),
-        o_course_training_topics: parseLines(form.o_course_training_topics),
 
-        // url lists
+        o_course_training_topics: (form.o_course_training_topics || []).map(
+          (t) => ({
+            title: (t.title || "").trim(),
+            bullets: (t.bullets || [])
+              .map((b) => (b || "").trim())
+              .filter(Boolean),
+          })
+        ),
+
         o_course_doc_paths: parseLines(form.o_course_doc_paths),
         o_course_lab_paths: parseLines(form.o_course_lab_paths),
-        o_course_case_study_paths: parseLines(
-          form.o_course_case_study_paths
-        ),
+        o_course_case_study_paths: parseLines(form.o_course_case_study_paths),
+        website_urls: parseLines(form.website_urls),
+        exam_links: parseLines(form.exam_links),
+
+        program: form.program || null,
+        skills: form.skills || [],
+        previous_course: form.previous_course || null,
       };
 
       const method = item && item._id ? "PATCH" : "POST";
       const url =
         item && item._id
-          ? `/api/admin/online-courses/${item._id}`
-          : `/api/admin/online-courses`;
+          ? `/api/online-courses/${item._id}`
+          : `/api/online-courses`;
 
       const res = await fetch(url, {
         method,
@@ -272,7 +380,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
         </div>
       </Section>
 
-      {/* Media, Schedule, Level, Price, Sort */}
+      {/* Media, Schedule, Level, Price, Sort, Previous */}
       <Section title="สื่อ & เวลาเรียน & ระดับ & ราคา & ลำดับ">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {/* Cover */}
@@ -443,47 +551,28 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
                 onChange={(e) => set("sort_order", e.target.value)}
               />
             </div>
+
+            {/* Previous course */}
+            <div className="col-span-3">
+              <FieldLabel>คอร์สก่อนหน้า (เลือก 1 รายการ)</FieldLabel>
+              <select
+                className="input"
+                value={form.previous_course || ""}
+                onChange={(e) => set("previous_course", e.target.value)}
+              >
+                <option value="">— ไม่ระบุ —</option>
+                {(allCourses || []).map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.o_course_name} ({c.o_course_id})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </Section>
 
-      {/* Flags */}
-      <Section title="รูปแบบคอร์ส (Online)">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-          <label className="chk">
-            <input
-              type="checkbox"
-              checked={!!form.o_course_workshop_status}
-              onChange={(e) =>
-                set("o_course_workshop_status", e.target.checked)
-              }
-            />{" "}
-            Workshop
-          </label>
-          <label className="chk">
-            <input
-              type="checkbox"
-              checked={!!form.o_course_certificate_status}
-              onChange={(e) =>
-                set("o_course_certificate_status", e.target.checked)
-              }
-            />{" "}
-            Certificate
-          </label>
-          <label className="chk lg:col-span-2">
-            <input
-              type="checkbox"
-              checked={!!form.o_course_promote_status}
-              onChange={(e) =>
-                set("o_course_promote_status", e.target.checked)
-              }
-            />{" "}
-            Promote
-          </label>
-        </div>
-      </Section>
-
-      {/* Program & Skills */}
+      {/* ✅ Program & Skills — layout เหมือน Public */}
       <Section
         title="หมวดโปรแกรม & สกิล"
         desc="เลือก Program หลัก 1 รายการ และเลือก Skill ได้หลายรายการ"
@@ -491,18 +580,29 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <div>
             <FieldLabel>Program</FieldLabel>
-            <select
-              className="input"
-              value={form.program}
-              onChange={(e) => set("program", e.target.value)}
-            >
-              <option value="">-- Select Program --</option>
-              {programs.map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.program_name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                className="input flex-1"
+                value={form.program}
+                onChange={(e) => set("program", e.target.value)}
+              >
+                <option value="">-- Select Program --</option>
+                {programs.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.program_name}
+                  </option>
+                ))}
+              </select>
+              {(() => {
+                const p = programs.find((x) => x._id === form.program);
+                return (
+                  <span
+                    className="inline-block size-4 rounded-full ring-1 ring-white/15"
+                    style={{ background: p?.programcolor || "#64748b" }}
+                  />
+                );
+              })()}
+            </div>
           </div>
 
           <div>
@@ -547,7 +647,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
 
       {/* Course Details (bullets) */}
       <Section
-        title="รายละเอียดคอร์ส"
+        title="รายละเอียดคอร์ส (หัวข้อหลัก)"
         desc="ใส่รายการเป็นบรรทัด ๆ ระบบจะเก็บเป็นอาเรย์และไปเรนเดอร์เป็น bullet list ให้"
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -619,24 +719,18 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
             />
             <BulletHint title="System Requirements" />
           </div>
-          <div className="lg:col-span-2">
-            <FieldLabel>
-              Training Topics{" "}
-              <span className="text-xs text-slate-400">
-                ({counts.top} ข้อ)
-              </span>
-            </FieldLabel>
-            <textarea
-              className="textarea min-h-[120px]"
-              placeholder="ใส่ทีละบรรทัด"
-              value={form.o_course_training_topics}
-              onChange={(e) =>
-                set("o_course_training_topics", e.target.value)
-              }
-            />
-            <BulletHint title="Training Topics" />
-          </div>
         </div>
+      </Section>
+
+      {/* Training Topics */}
+      <Section
+        title="Training Topics (หัวข้อ + หัวย่อย)"
+        desc="เพิ่มหัวข้อและระบุหัวข้อย่อยของแต่ละหัวข้อ (สำหรับใช้เรนเดอร์เป็น bullet list แบบซ้อน)"
+      >
+        <TopicsEditor
+          value={form.o_course_training_topics || []}
+          onChange={(v) => set("o_course_training_topics", v)}
+        />
       </Section>
 
       {/* URL Paths */}
@@ -693,10 +787,38 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               }
             />
           </div>
+          <div>
+            <FieldLabel>
+              Website URLs{" "}
+              <span className="text-xs text-slate-400">
+                ({counts.web})
+              </span>
+            </FieldLabel>
+            <textarea
+              className="textarea min-h-[120px]"
+              placeholder="https://.../site1\nhttps://.../site2"
+              value={form.website_urls}
+              onChange={(e) => set("website_urls", e.target.value)}
+            />
+          </div>
+          <div>
+            <FieldLabel>
+              Exam Links{" "}
+              <span className="text-xs text-slate-400">
+                ({counts.exam})
+              </span>
+            </FieldLabel>
+            <textarea
+              className="textarea min-h-[120px]"
+              placeholder="https://.../exam1\nhttps://.../exam2"
+              value={form.exam_links}
+              onChange={(e) => set("exam_links", e.target.value)}
+            />
+          </div>
         </div>
       </Section>
 
-      {/* sticky footer inside modal */}
+      {/* sticky footer */}
       <div className="sticky bottom-0 bg-slate-900/95 backdrop-blur border-t border-white/10 -mx-4 px-4 py-3 flex justify-end">
         <button
           disabled={saving}

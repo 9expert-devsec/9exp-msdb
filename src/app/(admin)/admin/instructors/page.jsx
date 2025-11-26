@@ -66,7 +66,8 @@ export default function InstructorsPage() {
     try {
       setLoading(true);
       const qs = [];
-      if (searchText.trim()) qs.push(`q=${encodeURIComponent(searchText.trim())}`);
+      if (searchText.trim())
+        qs.push(`q=${encodeURIComponent(searchText.trim())}`);
       if (filterProgramId) qs.push(`program=${filterProgramId}`);
       const url =
         "/api/admin/instructors" + (qs.length ? `?${qs.join("&")}` : "");
@@ -101,6 +102,28 @@ export default function InstructorsPage() {
   }, [programs, programSearch]);
 
   const totalInstructors = instructors.length;
+
+  // NEW: สรุปจำนวน Instructor ต่อ Program จากผลลัพธ์ที่กรองแล้ว
+  const programStats = useMemo(() => {
+    const map = new Map();
+
+    for (const inst of instructors) {
+      const list = Array.isArray(inst.programs) ? inst.programs : [];
+      if (!list.length) continue; // ถ้าไม่ผูก Program ข้ามไป
+
+      for (const p of list) {
+        if (!p?._id) continue;
+        const key = String(p._id);
+        if (!map.has(key)) {
+          map.set(key, { program: p, count: 0 });
+        }
+        map.get(key).count += 1;
+      }
+    }
+
+    // แปลงเป็น array เพื่อใช้ map เรนเดอร์ + sort ตามจำนวนมากไปน้อย
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [instructors]);
 
   /* ------------ helpers ------------- */
   function openCreateForm() {
@@ -247,6 +270,47 @@ export default function InstructorsPage() {
           </span>
         </div>
       </section>
+
+      {/* NEW: Program Overview (จำนวน Instructor ต่อ Program) */}
+      {programStats.length > 0 && (
+        <section className="rounded-2xl bg-slate-900/40 ring-1 ring-white/10 p-3 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-100">
+                Program Overview
+              </h2>
+              <p className="text-[11px] text-slate-400">
+                จำนวน Instructor ต่อ Program จากผลลัพธ์ที่ถูกกรองในตอนนี้
+              </p>
+            </div>
+            <div className="text-[11px] text-slate-400">
+              Programs:{" "}
+              <span className="font-semibold text-slate-100">
+                {programStats.length}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+            {programStats.map(({ program, count }) => (
+              <div
+                key={program._id}
+                className="flex items-center justify-between rounded-xl bg-slate-900/70 border border-white/10 px-3 py-2"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <ProgramChip program={program} />
+                </div>
+                <div className="text-right text-[11px] text-slate-400">
+                  <span className="text-base font-semibold text-emerald-400">
+                    {count}
+                  </span>{" "}
+                  <span>instr.</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* List */}
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

@@ -64,6 +64,19 @@ function CopyMenu({ item }) {
           >
             Case Study Paths
           </button>
+          <div className="my-1 h-px bg-white/10" />
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.website_urls))}
+          >
+            Website URLs
+          </button>
+          <button
+            className="mitem"
+            onClick={() => doCopy(join(item.exam_links))}
+          >
+            Exam Links
+          </button>
         </div>
       </details>
       <style jsx>{`
@@ -288,16 +301,23 @@ export default function OnlineCoursesAdminPage() {
                       <div className="text-sm opacity-80">
                         ID: {it.o_course_id} | Lessons:{" "}
                         {it.o_number_lessons ?? 0} | Hours:{" "}
-                        {/* รองรับทั้ง field เก่า o_traininghours และใหม่ o_course_traininghours */}
-                        {it.o_course_traininghours ??
-                          it.o_traininghours ??
-                          0}{" "}
-                        | Price: {it.o_course_price ?? 0}
+                        {it.o_course_traininghours ?? it.o_traininghours ?? 0} |{" "}
+                        Price: {it.o_course_price ?? 0}
                       </div>
                       <div className="text-sm mt-1">
                         Skills:{" "}
                         {it.skills?.map((s) => s.skill_name).join(", ") || "-"}
                       </div>
+{it.previous_course && (
+  <div className="text-xs mt-1 opacity-60">
+    Previous:{" "}
+    {it.previous_course.o_course_name
+      ? `${it.previous_course.o_course_name} (${
+          it.previous_course.o_course_id || "-"
+        })`
+      : it.previous_course.o_course_id || "-"}
+  </div>
+)}
                     </div>
                   </div>
 

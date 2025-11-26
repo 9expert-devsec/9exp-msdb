@@ -21,10 +21,14 @@ export const GET = withCors(async (req, { params }) => {
     const item = await OnlineCourse.findById(params.id)
       .populate("program")
       .populate("skills")
+      .populate("previous_course")
       .lean();
 
     if (!item)
-      return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: "Not found" },
+        { status: 404 }
+      );
 
     return NextResponse.json({ ok: true, item });
   } catch (e) {
@@ -40,16 +44,20 @@ export const PATCH = withCors(async (req, { params }) => {
 
     const payload = {
       ...body,
-
       o_course_doc_paths: cleanArray(body.o_course_doc_paths),
       o_course_lab_paths: cleanArray(body.o_course_lab_paths),
       o_course_case_study_paths: cleanArray(body.o_course_case_study_paths),
-
+      website_urls: cleanArray(body.website_urls),
+      exam_links: cleanArray(body.exam_links),
       o_course_objectives: cleanArray(body.o_course_objectives),
       o_course_target_audience: cleanArray(body.o_course_target_audience),
       o_course_prerequisites: cleanArray(body.o_course_prerequisites),
-      o_course_system_requirements: cleanArray(body.o_course_system_requirements),
-      o_course_training_topics: cleanArray(body.o_course_training_topics),
+      o_course_system_requirements: cleanArray(
+        body.o_course_system_requirements
+      ),
+      o_course_training_topics: Array.isArray(body.o_course_training_topics)
+        ? body.o_course_training_topics
+        : [],
     };
 
     const updated = await OnlineCourse.findByIdAndUpdate(params.id, payload, {

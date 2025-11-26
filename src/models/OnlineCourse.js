@@ -23,15 +23,31 @@ const OnlineCourseSchema = new mongoose.Schema(
     o_course_target_audience: [String],
     o_course_prerequisites: [String],
     o_course_system_requirements: [String],
-    o_course_training_topics: [String],
 
-    // 🔹 ใหม่: เก็บลิงก์ประกอบ
+    // topics (หัวข้อ + ย่อย)
+    o_course_training_topics: [
+      {
+        title: String,
+        bullets: [String],
+      },
+    ],
+
+    // ลิงก์ประกอบ
     o_course_doc_paths: [String],
     o_course_lab_paths: [String],
     o_course_case_study_paths: [String],
+    website_urls: [String],
+    exam_links: [String],
 
-    // 🔹 ใหม่: ลำดับจัดเรียง
+    // ลำดับจัดเรียง
     sort_order: { type: Number, default: 0 },
+
+    // คอร์สก่อนหน้า (อ้างอิง OnlineCourse ตัวเอง)
+    previous_course: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "OnlineCourse",
+      default: null,
+    },
 
     program: { type: mongoose.Schema.Types.ObjectId, ref: "Program" },
     skills: [{ type: mongoose.Schema.Types.ObjectId, ref: "Skill" }],
