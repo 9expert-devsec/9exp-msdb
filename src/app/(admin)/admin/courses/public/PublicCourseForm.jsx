@@ -281,50 +281,55 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
       const cleanArray = (arr) =>
         (arr || []).map((s) => (s || "").trim()).filter(Boolean);
 
-      const payload = {
-        ...form,
-        // ถ้าเป็นการแก้ไข ให้แนบ _id ไปให้ PATCH ใช้
-        ...(item && item._id ? { _id: item._id } : {}),
+      // ✅ คำนวณค่า previous_course ที่จะส่งไปเสมอ (id หรือ null)
+      const previousCoursePayload =
+        form.previous_course && String(form.previous_course).trim().length
+          ? form.previous_course
+          : null;
 
-        course_trainingdays: +form.course_trainingdays || 0,
-        course_traininghours: +form.course_traininghours || 0,
-        course_price: form.course_price === "" ? 0 : +form.course_price,
-        course_netprice:
-          form.course_netprice === "" || form.course_netprice == null
-            ? null
-            : +form.course_netprice,
-        sort_order: +form.sort_order || 0,
+const payload = {
+  ...form,
+  // ถ้าเป็นการแก้ไข ให้แนบ _id ไปให้ PATCH ใช้
+  ...(item && item._id ? { _id: item._id } : {}),
 
-        // plain bullets
-        course_objectives: parseLines(form.course_objectives),
-        course_target_audience: parseLines(form.course_target_audience),
-        course_prerequisites: parseLines(form.course_prerequisites),
-        course_system_requirements: parseLines(form.course_system_requirements),
+  course_trainingdays: +form.course_trainingdays || 0,
+  course_traininghours: +form.course_traininghours || 0,
+  course_price: form.course_price === "" ? 0 : +form.course_price,
+  course_netprice:
+    form.course_netprice === "" || form.course_netprice == null
+      ? null
+      : +form.course_netprice,
+  sort_order: +form.sort_order || 0,
 
-        // topics (หัวข้อ + หัวย่อย)
-        training_topics: (form.training_topics || []).map((t) => ({
-          title: (t.title || "").trim(),
-          bullets: (t.bullets || [])
-            .map((b) => (b || "").trim())
-            .filter(Boolean),
-        })),
+  // plain bullets
+  course_objectives: parseLines(form.course_objectives),
+  course_target_audience: parseLines(form.course_target_audience),
+  course_prerequisites: parseLines(form.course_prerequisites),
+  course_system_requirements: parseLines(form.course_system_requirements),
 
-        // URLs
-        course_doc_paths: cleanArray(form.course_doc_paths),
-        course_lab_paths: cleanArray(form.course_lab_paths),
-        course_case_study_paths: cleanArray(form.course_case_study_paths),
-        website_urls: cleanArray(form.website_urls),
-        exam_links: cleanArray(form.exam_links),
+  // topics
+  training_topics: (form.training_topics || []).map((t) => ({
+    title: (t.title || "").trim(),
+    bullets: (t.bullets || [])
+      .map((b) => (b || "").trim())
+      .filter(Boolean),
+  })),
 
-        // relations
-        program: form.program || null,
-        skills: form.skills || [],
+  // URLs (ปล่อยเป็น array ของ string ดิบ ๆ)
+  course_doc_paths: cleanArray(form.course_doc_paths),
+  course_lab_paths: cleanArray(form.course_lab_paths),
+  course_case_study_paths: cleanArray(form.course_case_study_paths),
+  website_urls: cleanArray(form.website_urls),
+  exam_links: cleanArray(form.exam_links),
 
-        // previous course (optional)
-        ...(form.previous_course
-          ? { previous_course: form.previous_course }
-          : {}),
-      };
+  // relations
+  program: form.program || null,
+  skills: form.skills || [],
+
+  // ❗ ถ้า dropdown = "" ให้ส่ง null ไปชัด ๆ
+  previous_course: form.previous_course || null,
+};
+
 
       const method = item && item._id ? "PATCH" : "POST";
       const url = `/api/admin/public-courses`;
@@ -337,17 +342,18 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
 
       if (!res.ok) {
         const txt = await res.text();
-        throw new Error(txt || `Request failed (${res.status})`);
+        throw new Error(txt || "Save failed");
       }
 
       onSaved?.();
     } catch (e) {
-      console.error(e);
-      alert(e.message || String(e));
+      console.error("Save public course failed:", e);
+      alert(e.message || "Save failed");
     } finally {
       setSaving(false);
     }
   };
+
 
 
   /* ---------- UI ---------- */

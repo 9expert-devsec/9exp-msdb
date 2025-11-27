@@ -123,37 +123,41 @@ export default function PublicCoursesAdminPage() {
 
   /* ---- load items ---- */
   // --- แทนที่ทั้งฟังก์ชัน fetchItems ด้วยเวอร์ชันนี้ ---
-  const fetchItems = async () => {
-    const qs = new URLSearchParams();
-    if (q) qs.set("q", q);
-    if (program) qs.set("program", program);
-    if (skill) qs.set("skill", skill);
+const fetchItems = async () => {
+  const qs = new URLSearchParams();
+  if (q) qs.set("q", q);
+  if (program) qs.set("program", program);
+  if (skill) qs.set("skill", skill);
 
-    const res = await fetch(`/api/public-courses?${qs.toString()}`, {
-      cache: "no-store",
-    });
+  // ✅ บังคับให้ดึงทีละเยอะ ๆ เสมอ (สำหรับหลังบ้าน)
+  qs.set("limit", "100");
+  qs.set("page", "1");
 
-    // ป้องกัน JSON parse error
-    let data;
-    try {
-      data = await res.json();
-    } catch (e) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(
-        `Fetch /api/public-courses failed (${res.status}): ${txt || e.message}`
-      );
-    }
+  const res = await fetch(`/api/public-courses?${qs.toString()}`, {
+    cache: "no-store",
+  });
 
-    if (!res.ok || data?.ok === false) {
-      throw new Error(
-        data?.error
-          ? `API error (${res.status}): ${data.error}`
-          : `API error (${res.status})`
-      );
-    }
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    console.error("Fetch /api/public-courses error:", e);
+    alert("โหลดรายการ Public Courses ไม่สำเร็จ");
+    return;
+  }
 
-    setItems(data.items || []);
-  };
+  if (!res.ok || data?.ok === false) {
+    console.error("API /api/public-courses error:", data);
+    alert(
+      data?.error
+        ? `โหลดข้อมูลล้มเหลว: ${data.error}`
+        : "โหลดรายการ Public Courses ไม่สำเร็จ"
+    );
+    return;
+  }
+
+  setItems(data.items || []);
+};
 
   useEffect(() => {
     fetchAll();

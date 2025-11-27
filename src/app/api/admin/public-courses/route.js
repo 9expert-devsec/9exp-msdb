@@ -97,7 +97,7 @@ const PublicCourseSchema = z
     exam_links: z.array(z.string()).optional().default([]),
 
     // previous course (ObjectId ใน DB, รับเป็น string id)
-    previous_course: z.string().optional(),
+    previous_course: z.string().nullable().optional(),
   })
   .passthrough();
 
@@ -135,9 +135,9 @@ export const POST = withRateLimit({ points: 10, duration: 60 })(async (req) => {
     json.exam_links = cleanArray(json.exam_links);
 
     // ❗ ถ้า previous_course ว่าง ให้ลบ field ทิ้งกัน cast error
-    if (!json.previous_course) {
-      delete json.previous_course;
-    }
+    if (json.previous_course === "" || json.previous_course === undefined) {
+  json.previous_course = null;
+}
 
     const input = PublicCourseSchema.parse(json);
     const created = await PublicCourse.create(input);
@@ -167,6 +167,26 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(async (req) => 
     await dbConnect();
 
     const json = await req.json();
+
+    // แปลง text -> array
+    json.course_objectives = cleanArray(json.course_objectives);
+    json.course_target_audience = cleanArray(json.course_target_audience);
+    json.course_prerequisites = cleanArray(json.course_prerequisites);
+    json.course_system_requirements = cleanArray(
+      json.course_system_requirements
+    );
+
+    json.course_doc_paths = cleanArray(json.course_doc_paths);
+    json.course_lab_paths = cleanArray(json.course_lab_paths);
+    json.course_case_study_paths = cleanArray(json.course_case_study_paths);
+    json.website_urls = cleanArray(json.website_urls);
+    json.exam_links = cleanArray(json.exam_links);
+
+    // "" -> null สำหรับ previous_course
+    if (json.previous_course === "" || json.previous_course === undefined) {
+      json.previous_course = null;
+    }
+
     const id = String(json?._id || "").trim();
     if (!id) {
       return NextResponse.json(
@@ -175,59 +195,12 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(async (req) => 
       );
     }
 
-    if ("skills" in json) json.skills = cleanArray(json.skills);
-    if ("sort_order" in json) json.sort_order = toInt(json.sort_order, 0);
-
-    if ("course_trainingdays" in json)
-      json.course_trainingdays = normalizeNumber(
-        json.course_trainingdays,
-        false
-      );
-    if ("course_traininghours" in json)
-      json.course_traininghours = normalizeNumber(
-        json.course_traininghours,
-        false
-      );
-    if ("course_price" in json)
-      json.course_price = normalizeNumber(json.course_price, false);
-    if ("course_netprice" in json)
-      json.course_netprice = normalizeNumber(json.course_netprice, true);
-
-    if ("course_objectives" in json)
-      json.course_objectives = cleanArray(json.course_objectives);
-    if ("course_target_audience" in json)
-      json.course_target_audience = cleanArray(json.course_target_audience);
-    if ("course_prerequisites" in json)
-      json.course_prerequisites = cleanArray(json.course_prerequisites);
-    if ("course_system_requirements" in json)
-      json.course_system_requirements = cleanArray(
-        json.course_system_requirements
-      );
-
-    if ("course_doc_paths" in json)
-      json.course_doc_paths = cleanArray(json.course_doc_paths);
-    if ("course_lab_paths" in json)
-      json.course_lab_paths = cleanArray(json.course_lab_paths);
-    if ("course_case_study_paths" in json)
-      json.course_case_study_paths = cleanArray(json.course_case_study_paths);
-    if ("website_urls" in json)
-      json.website_urls = cleanArray(json.website_urls);
-    if ("exam_links" in json) json.exam_links = cleanArray(json.exam_links);
-
-    // ❗ ถ้า previous_course ไม่มีค่า → ลบ field เพื่อให้ mongoose เคลียร์ให้
-    if (!json.previous_course) {
-      delete json.previous_course;
-    }
-
     const updates = PublicCourseSchema.partial().parse(json);
 
     const item = await PublicCourse.findByIdAndUpdate(id, updates, {
       new: true,
     })
-      .populate(
-        "program",
-        "program_id program_name programiconurl programcolor"
-      )
+      .populate("program", "program_id program_name programiconurl programcolor")
       .populate("skills", "skill_id skill_name skilliconurl skillcolor")
       .populate("previous_course", "course_id course_name")
       .lean();
@@ -242,7 +215,6 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(async (req) => 
     return NextResponse.json({ ok: true, item }, { status: 200 });
   } catch (e) {
     if (e instanceof Response) return e;
-    console.error("Update PublicCourse error:", e);
     const msg = e?.errors?.[0]?.message || e?.message || "Update failed";
     return NextResponse.json({ ok: false, error: msg }, { status: 400 });
   }
