@@ -1,9 +1,11 @@
 import LoginClient from "./LoginClient";
 
-export default function Page({ searchParams }) {
+export default async function Page({ searchParams }) {
+  const params = await searchParams;
+
   const nextPath =
-    typeof searchParams?.next === "string" && searchParams.next.trim()
-      ? decodeURIComponent(searchParams.next)
+    typeof params?.next === "string" && params.next.trim()
+      ? decodeURIComponent(params.next)
       : "/admin/dashboard";
 
   return <LoginClient nextPath={nextPath} />;
