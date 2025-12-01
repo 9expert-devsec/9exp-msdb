@@ -1,7 +1,7 @@
 // src/app/api/ai/about-us/route.js
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
-import AboutUs from "@/models/AboutUs";
+import AboutPage from "@/models/AboutPage";
 import { checkAiApiKey } from "@/lib/ai-auth";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export async function GET(req) {
   try {
     await dbConnect();
 
-    const item = await AboutUs.findOne({})
+    const item = await AboutPage.findOne({})
       .sort({ updatedAt: -1 })
       .lean();
 
