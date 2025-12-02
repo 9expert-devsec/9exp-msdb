@@ -45,6 +45,7 @@ function FaqForm({ item, onClose, onSaved, onDeleted }) {
   // โหลดค่าจาก item ทุกครั้งที่เปลี่ยน
   useEffect(() => {
     if (item && item._id) {
+      // กรณี Edit ใช้ค่าจาก DB
       setForm({
         ...DEFAULT_FAQ,
         ...item,
@@ -52,7 +53,14 @@ function FaqForm({ item, onClose, onSaved, onDeleted }) {
         is_published: item.is_published !== false,
       });
     } else {
-      setForm({ ...DEFAULT_FAQ });
+      // กรณี New (รวมเคสที่ส่ง category จาก "+ Add in this category")
+      const base = item || {};
+      setForm({
+        ...DEFAULT_FAQ,
+        ...base,
+        order: base.order ?? 0,
+        is_published: base.is_published !== false,
+      });
     }
   }, [item]);
 
@@ -313,7 +321,7 @@ function FaqCategoryCard({ category, items, onEdit }) {
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300 text-sm font-semibold">
             {category?.[0]?.toUpperCase() || "?"}
           </span>
-          <div>
+        <div>
             <div className="text-sm font-semibold">
               {category || "Uncategorized"}
             </div>
@@ -493,6 +501,7 @@ export default function FaqAdminPage() {
             items={itemsInCat}
             onEdit={(payload) => {
               if (payload?.isNew) {
+                // เคส "+ Add in this category" → preset category ให้ฟอร์ม
                 setEditing({ ...DEFAULT_FAQ, category: payload.category });
               } else {
                 setEditing(payload);
