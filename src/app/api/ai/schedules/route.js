@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 
-// register models สำหรับ populate
 import "@/models/Program";
 import "@/models/PublicCourse";
 import Schedule from "@/models/Schedule";
@@ -12,7 +11,6 @@ import { checkAiApiKey } from "@/lib/ai-auth";
 export const dynamic = "force-dynamic";
 
 export async function GET(req) {
-  // 1) เช็ค API Key ก่อนเลย
   const authError = checkAiApiKey(req);
   if (authError) return authError;
 
@@ -20,26 +18,12 @@ export async function GET(req) {
 
   try {
     const { searchParams } = new URL(req.url);
-    const monthsParam = searchParams.get("months");
     const course = searchParams.get("course") || "";
-
-    // ป้องกัน months แปลก ๆ
-    let months = Number.isFinite(Number(monthsParam))
-      ? Number(monthsParam)
-      : 12;
-    if (months <= 0) months = 1;
-    if (months > 24) months = 24; // กันยิงขอเยอะเกิน
 
     const filter = {};
     if (course) filter.course = course;
 
-    // ดึงรอบในช่วง n เดือนถัดไป
-    const now = new Date();
-    const until = new Date(now);
-    until.setMonth(until.getMonth() + months);
-
-    filter.dates = { $elemMatch: { $gte: now, $lte: until } };
-
+    // *** ไม่มี filter.dates แล้ว ดึงทั้งหมด ***
     const items = await Schedule.find(filter)
       .populate({
         path: "course",
@@ -53,8 +37,7 @@ export async function GET(req) {
       .sort({ "course.sort_order": 1, "course.course_name": 1 })
       .lean();
 
-    // สำหรับ AI ผมใส่ ok: true ไปให้ด้วย จะได้เช็คง่าย
-    return NextResponse.json({ ok: true, items });
+    return NextResponse.json({ ok: true, items }, { status: 200 });
   } catch (err) {
     return NextResponse.json(
       { ok: false, error: err?.message || "Server error" },
