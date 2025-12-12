@@ -18,7 +18,13 @@ export async function GET(req) {
       .lean();
 
     return NextResponse.json(
-      { ok: true, items: items || [] },
+      {
+        ok: true,
+        summary: {
+          total: items.length,
+        },
+        items,
+      },
       { status: 200 }
     );
   } catch (err) {

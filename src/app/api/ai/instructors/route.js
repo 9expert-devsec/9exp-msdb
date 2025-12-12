@@ -29,11 +29,23 @@ export async function GET(req) {
     }
 
     const items = await Instructor.find(filter)
-      .populate("programs", "program_id program_name programiconurl programcolor")
+      .populate(
+        "programs",
+        "program_id program_name programiconurl programcolor"
+      )
       .sort({ name: 1 })
       .lean();
 
-    return NextResponse.json({ ok: true, items }, { status: 200 });
+    return NextResponse.json(
+      {
+        ok: true,
+        summary: {
+          total: items.length,
+        },
+        items,
+      },
+      { status: 200 }
+    );
   } catch (err) {
     console.error("GET /api/ai/instructors error:", err);
     return NextResponse.json(

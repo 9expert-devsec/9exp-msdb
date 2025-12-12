@@ -22,7 +22,9 @@ export async function GET(req) {
 
     // ดึงข้อมูล Programs ทั้งหมด
     const items = await Program.find()
-      .select("program_id program_name programiconurl programcolor sort_order createdAt updatedAt")
+      .select(
+        "program_id program_name programiconurl programcolor sort_order createdAt updatedAt"
+      )
       .sort({ program_name: 1 })
       .lean();
 
@@ -59,7 +61,16 @@ export async function GET(req) {
       return NextResponse.json({ ok: true, items: enriched }, { status: 200 });
     }
 
-    return NextResponse.json({ ok: true, items }, { status: 200 });
+    return NextResponse.json(
+      {
+        ok: true,
+        summary: {
+          total: items.length,
+        },
+        items,
+      },
+      { status: 200 }
+    );
   } catch (err) {
     return NextResponse.json(
       { ok: false, error: err?.message || "Server error" },

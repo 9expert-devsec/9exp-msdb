@@ -22,18 +22,23 @@ export async function GET(req) {
 
     if (q) {
       const re = new RegExp(q, "i");
-      where.$or = [
-        { question: re },
-        { answer_plain: re },
-        { category: re },
-      ];
+      where.$or = [{ question: re }, { answer_plain: re }, { category: re }];
     }
 
     const items = await Faq.find(where)
       .sort({ category: 1, order: 1, createdAt: 1 })
       .lean();
 
-    return NextResponse.json({ ok: true, items }, { status: 200 });
+    return NextResponse.json(
+      {
+        ok: true,
+        summary: {
+          total: items.length,
+        },
+        items,
+      },
+      { status: 200 }
+    );
   } catch (err) {
     console.error("GET /api/ai/faqs error:", err);
     return NextResponse.json(
