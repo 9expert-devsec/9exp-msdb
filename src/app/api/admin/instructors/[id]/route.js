@@ -2,83 +2,63 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import Instructor from "@/models/Instructor";
-import "@/models/Program";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_req, { params }) {
-  try {
-    await dbConnect();
-    const { id } = params;
-    const item = await Instructor.findById(id)
-      .populate("programs")
-      .lean();
-
-    if (!item) {
-      return NextResponse.json(
-        { ok: false, error: "Instructor not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ ok: true, item }, { status: 200 });
-  } catch (e) {
-    console.error("GET /admin/instructors/[id] error:", e);
-    return NextResponse.json(
-      { ok: false, error: e.message || "Internal error" },
-      { status: 500 }
-    );
-  }
-}
-
+/* ===================== PATCH ===================== */
 export async function PATCH(req, { params }) {
+  await dbConnect();
+
   try {
-    await dbConnect();
-    const { id } = params;
     const body = await req.json();
+    const { name, name_en, bio, programs } = body;
 
     const update = {};
-    if ("name" in body) update.name = String(body.name || "").trim();
-    if ("bio" in body) update.bio = String(body.bio || "").trim();
-    if ("programs" in body) {
-      update.programs = Array.isArray(body.programs)
-        ? body.programs.filter(Boolean)
-        : [];
-    }
 
-    const updated = await Instructor.findByIdAndUpdate(id, update, {
-      new: true,
-    })
-      .populate("programs")
-      .lean();
+    if (name !== undefined) update.name = name.trim();
+    if (name_en !== undefined) update.name_en = name_en.trim(); // ✅ NEW
+    if (bio !== undefined) update.bio = bio.trim();
+    if (programs !== undefined)
+      update.programs = Array.isArray(programs) ? programs : [];
 
-    if (!updated) {
+    const doc = await Instructor.findByIdAndUpdate(
+      params.id,
+      { $set: update },
+      { new: true }
+    );
+
+    if (!doc) {
       return NextResponse.json(
         { ok: false, error: "Instructor not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ ok: true, item: updated }, { status: 200 });
-  } catch (e) {
-    console.error("PATCH /admin/instructors/[id] error:", e);
+    return NextResponse.json({ ok: true, item: doc });
+  } catch (err) {
     return NextResponse.json(
-      { ok: false, error: e.message || "Internal error" },
+      { ok: false, error: err.message },
       { status: 500 }
     );
   }
 }
 
+/* ===================== DELETE ===================== */
 export async function DELETE(_req, { params }) {
+  await dbConnect();
+
   try {
-    await dbConnect();
-    const { id } = params;
-    await Instructor.findByIdAndDelete(id);
-    return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (e) {
-    console.error("DELETE /admin/instructors/[id] error:", e);
+    const doc = await Instructor.findByIdAndDelete(params.id);
+    if (!doc) {
+      return NextResponse.json(
+        { ok: false, error: "Instructor not found" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({ ok: true });
+  } catch (err) {
     return NextResponse.json(
-      { ok: false, error: e.message || "Internal error" },
+      { ok: false, error: err.message },
       { status: 500 }
     );
   }

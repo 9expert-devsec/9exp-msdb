@@ -1,27 +1,37 @@
-// src/models/Instructor.js
-import mongoose, { Schema } from "mongoose";
+// models/Instructor.js
+import mongoose from "mongoose";
 
-const InstructorSchema = new Schema(
+const InstructorSchema = new mongoose.Schema(
   {
     name: {
       type: String,
       required: true,
       trim: true,
     },
+
+    // ✅ NEW: English name
+    name_en: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     bio: {
       type: String,
-      default: "",
       trim: true,
+      default: "",
     },
-    // คนเดียวสอนได้หลาย Program
+
     programs: [
       {
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "Program",
       },
     ],
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 export default mongoose.models.Instructor ||

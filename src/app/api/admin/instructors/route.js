@@ -2,74 +2,76 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import Instructor from "@/models/Instructor";
-import Program from "@/models/Program";
+import "@/models/Program";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/admin/instructors?q=&program=
+/* ===================== GET ===================== */
 export async function GET(req) {
+  await dbConnect();
+
   try {
-    await dbConnect();
     const { searchParams } = new URL(req.url);
-    const q = (searchParams.get("q") || "").trim();
+    const q = searchParams.get("q")?.trim();
     const program = searchParams.get("program");
 
     const filter = {};
-    if (q) {
-      filter.name = { $regex: q, $options: "i" };
-    }
+
     if (program) {
       filter.programs = program;
     }
 
+    if (q) {
+      filter.$or = [
+        { name: { $regex: q, $options: "i" } },
+        { name_en: { $regex: q, $options: "i" } }, // ✅ search EN
+        { bio: { $regex: q, $options: "i" } },
+      ];
+    }
+
     const items = await Instructor.find(filter)
-      .populate("programs")
-      .sort({ name: 1 })
+      .populate({
+        path: "programs",
+        select: "program_id program_name programcolor programiconurl",
+      })
+      .sort({ updatedAt: -1 })
       .lean();
 
-    return NextResponse.json({ ok: true, items }, { status: 200 });
-  } catch (e) {
-    console.error("GET /admin/instructors error:", e);
+    return NextResponse.json({ ok: true, items });
+  } catch (err) {
     return NextResponse.json(
-      { ok: false, error: e.message || "Internal error" },
+      { ok: false, error: err.message },
       { status: 500 }
     );
   }
 }
 
-// POST /api/admin/instructors
+/* ===================== POST ===================== */
 export async function POST(req) {
-  try {
-    await dbConnect();
-    const body = await req.json();
-    const { name, bio = "", programs = [] } = body || {};
+  await dbConnect();
 
-    if (!name || !String(name).trim()) {
+  try {
+    const body = await req.json();
+    const { name, name_en, bio, programs } = body;
+
+    if (!name?.trim()) {
       return NextResponse.json(
-        { ok: false, error: "กรุณาใส่ชื่อ Instructor" },
+        { ok: false, error: "Name is required" },
         { status: 400 }
       );
     }
 
-    const progIds = Array.isArray(programs)
-      ? programs.filter(Boolean)
-      : [];
-
-    const created = await Instructor.create({
-      name: String(name).trim(),
-      bio: String(bio || "").trim(),
-      programs: progIds,
+    const doc = await Instructor.create({
+      name: name.trim(),
+      name_en: name_en?.trim() || "", // ✅ NEW
+      bio: bio?.trim() || "",
+      programs: Array.isArray(programs) ? programs : [],
     });
 
-    const populated = await Instructor.findById(created._id)
-      .populate("programs")
-      .lean();
-
-    return NextResponse.json({ ok: true, item: populated }, { status: 201 });
-  } catch (e) {
-    console.error("POST /admin/instructors error:", e);
+    return NextResponse.json({ ok: true, item: doc });
+  } catch (err) {
     return NextResponse.json(
-      { ok: false, error: e.message || "Internal error" },
+      { ok: false, error: err.message },
       { status: 500 }
     );
   }

@@ -46,6 +46,7 @@ export default function InstructorsPage() {
   const [editing, setEditing] = useState(null); // instructor object หรือ null
 
   const [formName, setFormName] = useState("");
+  const [formNameEn, setFormNameEn] = useState(""); // ✅ NEW
   const [formBio, setFormBio] = useState("");
   const [formProgramIds, setFormProgramIds] = useState([]);
   const [programSearch, setProgramSearch] = useState("");
@@ -103,13 +104,13 @@ export default function InstructorsPage() {
 
   const totalInstructors = instructors.length;
 
-  // NEW: สรุปจำนวน Instructor ต่อ Program จากผลลัพธ์ที่กรองแล้ว
+  // สรุปจำนวน Instructor ต่อ Program จากผลลัพธ์ที่กรองแล้ว
   const programStats = useMemo(() => {
     const map = new Map();
 
     for (const inst of instructors) {
       const list = Array.isArray(inst.programs) ? inst.programs : [];
-      if (!list.length) continue; // ถ้าไม่ผูก Program ข้ามไป
+      if (!list.length) continue;
 
       for (const p of list) {
         if (!p?._id) continue;
@@ -121,7 +122,6 @@ export default function InstructorsPage() {
       }
     }
 
-    // แปลงเป็น array เพื่อใช้ map เรนเดอร์ + sort ตามจำนวนมากไปน้อย
     return Array.from(map.values()).sort((a, b) => b.count - a.count);
   }, [instructors]);
 
@@ -129,6 +129,7 @@ export default function InstructorsPage() {
   function openCreateForm() {
     setEditing(null);
     setFormName("");
+    setFormNameEn(""); // ✅ NEW
     setFormBio("");
     setFormProgramIds([]);
     setProgramSearch("");
@@ -138,6 +139,7 @@ export default function InstructorsPage() {
   function openEditForm(inst) {
     setEditing(inst);
     setFormName(inst.name || "");
+    setFormNameEn(inst.name_en || ""); // ✅ NEW
     setFormBio(inst.bio || "");
     setFormProgramIds((inst.programs || []).map((p) => String(p._id)));
     setProgramSearch("");
@@ -161,6 +163,7 @@ export default function InstructorsPage() {
       setSaving(true);
       const payload = {
         name: formName.trim(),
+        name_en: formNameEn.trim(), // ✅ NEW
         bio: formBio.trim(),
         programs: formProgramIds,
       };
@@ -271,7 +274,7 @@ export default function InstructorsPage() {
         </div>
       </section>
 
-      {/* NEW: Program Overview (จำนวน Instructor ต่อ Program) */}
+      {/* Program Overview */}
       {programStats.length > 0 && (
         <section className="rounded-2xl bg-slate-900/40 ring-1 ring-white/10 p-3 space-y-3">
           <div className="flex items-center justify-between gap-2">
@@ -337,9 +340,19 @@ export default function InstructorsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
-                    <h2 className="font-semibold text-sm truncate">
-                      {inst.name}
-                    </h2>
+                    <div className="min-w-0">
+                      <h2 className="font-semibold text-sm truncate">
+                        {inst.name}
+                      </h2>
+
+                      {/* ✅ NEW: name_en */}
+                      {inst.name_en ? (
+                        <div className="mt-0.5 text-[11px] text-slate-400 truncate">
+                          {inst.name_en}
+                        </div>
+                      ) : null}
+                    </div>
+
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
                       <button
                         onClick={() => openEditForm(inst)}
@@ -414,7 +427,7 @@ export default function InstructorsPage() {
                   {editing ? "Edit Instructor" : "Add Instructor"}
                 </h2>
                 <p className="text-[11px] text-slate-400">
-                  ระบุชื่อ, Bio และ Program ที่สอนได้
+                  ระบุชื่อ, ชื่อภาษาอังกฤษ, Bio และ Program ที่สอนได้
                 </p>
               </div>
               <button
@@ -433,7 +446,7 @@ export default function InstructorsPage() {
               <div className="p-5 space-y-4 border-b md:border-b-0 md:border-r border-white/10">
                 <div>
                   <label className="text-xs font-medium text-slate-200">
-                    Name
+                    Name (TH)
                   </label>
                   <input
                     value={formName}
@@ -441,6 +454,25 @@ export default function InstructorsPage() {
                     className="mt-1 w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                     placeholder="เช่น อ.สอน ดี"
                   />
+                </div>
+
+                {/* ✅ NEW: Name EN */}
+                <div>
+                  <label className="text-xs font-medium text-slate-200">
+                    Name (EN){" "}
+                    <span className="ml-1 text-[10px] text-slate-500">
+                      (optional)
+                    </span>
+                  </label>
+                  <input
+                    value={formNameEn}
+                    onChange={(e) => setFormNameEn(e.target.value)}
+                    className="mt-1 w-full rounded-xl bg-slate-900/60 border border-white/10 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                    placeholder="e.g. Somchai Jaidee"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    ถ้าไม่กรอก จะใช้ชื่อไทยเป็นหลัก
+                  </p>
                 </div>
 
                 <div>
@@ -529,6 +561,7 @@ export default function InstructorsPage() {
                     )}
                   </div>
                 </div>
+
                 <p className="mt-1 text-[11px] text-slate-500">
                   เลือกได้หลาย Program ต่อ 1 Instructor
                 </p>
