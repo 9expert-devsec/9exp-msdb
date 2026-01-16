@@ -362,7 +362,7 @@ export default function AdminLayout({ children }) {
           {/* LOGO + TITLE */}
           <div className="relative flex items-center px-2">
             <img
-              src="/logo-9exp-sec.png"
+              src="/logo-9exp-sec.ico"
               alt="logo"
               width={32}
               height={32}
