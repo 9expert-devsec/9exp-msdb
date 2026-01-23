@@ -49,7 +49,7 @@ export async function GET(req) {
 
     const items = await OnlineCourse.find(where)
       .select(
-        "o_course_cover_url o_course_id o_course_name o_course_teaser o_course_link o_course_price o_course_duration program skills sort_order createdAt updatedAt"
+        "o_course_cover_url o_course_id o_course_name o_course_teaser o_course_levels o_course_link o_course_price o_course_duration program skills sort_order createdAt updatedAt"
       )
       .populate(
         "program",
