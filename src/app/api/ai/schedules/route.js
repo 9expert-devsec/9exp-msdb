@@ -12,8 +12,30 @@ export const dynamic = "force-dynamic";
 
 // helper: สร้าง UTC midnight จาก YYYY-MM-DD
 function utcMidnight(ymd) {
-  // ymd: "2025-12-15"
   return new Date(`${ymd}T00:00:00.000Z`);
+}
+
+// helper: วันนี้ 00:00Z
+function utcStartOfToday() {
+  const now = new Date();
+  return new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+}
+
+// helper: max date
+function maxDate(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  return a.getTime() >= b.getTime() ? a : b;
 }
 
 export async function GET(req) {
@@ -29,13 +51,13 @@ export async function GET(req) {
     const coursesParam = searchParams.get("courses") || "";
 
     const dateStr = searchParams.get("date"); // YYYY-MM-DD
-    const fromStr = searchParams.get("from"); // YYYY-MM-DD (แนะนำ)
-    const toStr = searchParams.get("to"); // YYYY-MM-DD (แนะนำ)
-    const monthsParam = searchParams.get("months");
+    const fromStr = searchParams.get("from"); // YYYY-MM-DD
+    const toStr = searchParams.get("to"); // YYYY-MM-DD (inclusive)
+    const monthsParam = searchParams.get("months"); // number
 
     const filter = {};
 
-    // filter ตามคอร์ส
+    /* ---------------- course filter ---------------- */
     if (coursesParam) {
       const ids = coursesParam
         .split(",")
@@ -46,27 +68,49 @@ export async function GET(req) {
       filter.course = course;
     }
 
-    // --------- filter ตามช่วงวันที่ ----------
+    /* ---------------- requirement filters ---------------- */
+    // status: เอาเฉพาะ open + nearly_full (full ไม่เอาอยู่แล้ว)
+    filter.status = { $in: ["open", "nearly_full"] };
+
+    // signup_url: ต้องไม่ว่าง/ไม่ใช่ช่องว่างล้วน
+    filter.signup_url = { $regex: /\S/ };
+
+    /* ---------------- date filter (สำคัญ) ----------------
+       ต้อง "ไม่เอารอบที่ผ่านไปแล้ว" โดยนิยามว่า:
+       - ถ้าวันปัจจุบันเลยวันสุดท้ายของรอบ -> ไม่แสดง
+       ทำได้ด้วย: dates มีอย่างน้อย 1 วันที่ >= วันนี้ 00:00Z
+    */
+    const today = utcStartOfToday();
+
     const hasDateFilter = !!(dateStr || fromStr || toStr || monthsParam);
 
     if (hasDateFilter) {
       if (dateStr) {
         // ระบุวันเดียว: [day 00:00Z, next day 00:00Z)
-        const start = utcMidnight(dateStr);
-        const end = new Date(start);
+        // แต่ยังต้องไม่น้อยกว่าวันนี้ (กันขอดึงย้อนหลัง)
+        const startRaw = utcMidnight(dateStr);
+        const start = maxDate(startRaw, today);
+
+        const end = new Date(utcMidnight(dateStr));
         end.setUTCDate(end.getUTCDate() + 1);
 
+        // ถ้าระบุ date ที่เป็นอดีตหมด -> start จะถูกดันเป็น today
+        // และ start อาจ >= end => จะไม่มีผลลัพธ์ (ถูกต้องตาม requirement)
         filter.dates = { $elemMatch: { $gte: start, $lt: end } };
       } else if (fromStr || toStr) {
         const cond = {};
-        if (fromStr) cond.$gte = utcMidnight(fromStr);
+
+        if (fromStr) cond.$gte = maxDate(utcMidnight(fromStr), today);
+        else cond.$gte = today; // ไม่ส่ง from มา ก็ยังกันอดีตอยู่ดี
+
         if (toStr) {
-          // ให้ to เป็น inclusive แบบทั้งวัน → ไปถึง next day 00:00Z แล้วใช้ $lt
+          // inclusive ทั้งวัน -> next day 00:00Z แล้วใช้ $lt
           const toStart = utcMidnight(toStr);
           const toEnd = new Date(toStart);
           toEnd.setUTCDate(toEnd.getUTCDate() + 1);
           cond.$lt = toEnd;
         }
+
         filter.dates = { $elemMatch: cond };
       } else {
         // months: วันนี้ -> n เดือนข้างหน้า
@@ -76,14 +120,16 @@ export async function GET(req) {
         if (months <= 0) months = 1;
         if (months > 24) months = 24;
 
-        const now = new Date();
-        const until = new Date(now);
-        until.setMonth(until.getMonth() + months);
+        const until = new Date(today);
+        until.setUTCMonth(until.getUTCMonth() + months);
 
-        filter.dates = { $elemMatch: { $gte: now, $lte: until } };
+        filter.dates = { $elemMatch: { $gte: today, $lt: until } };
       }
+    } else {
+      // ✅ DEFAULT: รอบทั้งหมดในอนาคต/ยังไม่จบ (ไม่จำกัดเดือน)
+      // ถ้ารอบผ่านไปแล้ว (ทุก dates < today) -> ไม่ติดเงื่อนไขนี้
+      filter.dates = { $elemMatch: { $gte: today } };
     }
-    // ถ้าไม่ส่ง date/from/to/months มาเลย -> ALL (ไม่ใส่ filter.dates)
 
     const items = await Schedule.find(filter)
       .populate({
@@ -95,7 +141,8 @@ export async function GET(req) {
           select: "program_id program_name programiconurl sort_order",
         },
       })
-      .sort({ "course.sort_order": 1, "course.course_name": 1 })
+      // เรียงใกล้วันเริ่มก่อน (ถ้าคุณเก็บ dates[0] เป็นวันเริ่ม)
+      .sort({ "dates.0": 1, "course.sort_order": 1, "course.course_name": 1 })
       .lean();
 
     return NextResponse.json(
@@ -104,15 +151,16 @@ export async function GET(req) {
         summary: {
           total: items.length,
           filterUsed: filter,
+          todayUTC: today.toISOString(),
         },
         items,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (err) {
     return NextResponse.json(
       { ok: false, error: err?.message || "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
