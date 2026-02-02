@@ -1,6 +1,7 @@
+// src/app/(admin)/admin/courses/online/page.jsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import OnlineCourseForm from "./OnlineCourseForm";
 
 /* ========== small UI helpers ========== */
@@ -95,6 +96,61 @@ function CopyMenu({ item }) {
   );
 }
 
+/* ========== skeletons (เฉพาะ list area) ========== */
+function SkeletonBlock({ className = "" }) {
+  return (
+    <div
+      className={`animate-pulse rounded-xl bg-white/10 ring-1 ring-white/10 ${className}`}
+    />
+  );
+}
+
+function ListSkeleton() {
+  return (
+    <div className="space-y-6">
+      {Array.from({ length: 3 }).map((_, gi) => (
+        <section
+          key={gi}
+          className="rounded-2xl bg-white/5 ring-1 ring-white/10"
+        >
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <SkeletonBlock className="h-4 w-4 rounded" />
+              <SkeletonBlock className="h-4 w-40" />
+              <SkeletonBlock className="h-3 w-16 rounded-md" />
+            </div>
+          </div>
+
+          <div className="divide-y divide-white/10">
+            {Array.from({ length: 5 }).map((_, ri) => (
+              <div
+                key={ri}
+                className="p-4 flex items-start justify-between gap-3"
+              >
+                <div className="flex items-start gap-3">
+                  <SkeletonBlock className="w-20 h-12 rounded" />
+                  <div className="space-y-2">
+                    <SkeletonBlock className="h-4 w-72" />
+                    <SkeletonBlock className="h-3 w-96" />
+                    <SkeletonBlock className="h-3 w-64" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <SkeletonBlock className="h-8 w-16 rounded-lg" />
+                  <SkeletonBlock className="h-8 w-16 rounded-lg" />
+                  <SkeletonBlock className="h-8 w-16 rounded-lg" />
+                  <SkeletonBlock className="h-8 w-16 rounded-lg" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 /* ========== main page ========== */
 export default function OnlineCoursesAdminPage() {
   const [items, setItems] = useState([]);
@@ -108,61 +164,116 @@ export default function OnlineCoursesAdminPage() {
 
   const [previewUrl, setPreviewUrl] = useState("");
 
+  const [loadingAll, setLoadingAll] = useState(true);
+  const [loadingItems, setLoadingItems] = useState(true);
+
+  // กันยิงซ้ำรอบแรก + กัน race
+  const didInitRef = useRef(false);
+  const reqIdRef = useRef(0);
+  const abortRef = useRef(null);
+
   /* ---- load dropdown options ---- */
   const fetchAll = async () => {
-    const [pg, sk] = await Promise.all([
-      fetch("/api/programs?withCounts=1", { cache: "no-store" }).then((r) =>
-        r.json()
-      ),
-      fetch("/api/skills", { cache: "no-store" }).then((r) => r.json()),
-    ]);
-    setPrograms(pg.items || []);
-    setSkills(sk.items || []);
+    setLoadingAll(true);
+    try {
+      const [pg, sk] = await Promise.all([
+        fetch("/api/programs?withCounts=1", { cache: "no-store" }).then((r) =>
+          r.json(),
+        ),
+        fetch("/api/skills", { cache: "no-store" }).then((r) => r.json()),
+      ]);
+      setPrograms(pg.items || []);
+      setSkills(sk.items || []);
+    } finally {
+      setLoadingAll(false);
+    }
   };
 
   /* ---- load items ---- */
   const fetchItems = async () => {
+    // cancel request ก่อนหน้า (ถ้ามี)
+    if (abortRef.current) {
+      try {
+        abortRef.current.abort();
+      } catch {}
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setLoadingItems(true);
+    const myReqId = ++reqIdRef.current;
+
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
     if (program) qs.set("program", program);
     if (skill) qs.set("skill", skill);
 
-    const res = await fetch(`/api/online-courses?${qs.toString()}`, {
-      cache: "no-store",
-    });
+    let res;
+    try {
+      res = await fetch(`/api/online-courses?${qs.toString()}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } catch (e) {
+      if (e?.name === "AbortError") return;
+      console.error("Fetch /api/online-courses network error:", e);
+      alert("โหลดรายการ Online Courses ไม่สำเร็จ (network)");
+      setLoadingItems(false);
+      return;
+    }
 
-    // ป้องกัน JSON parse error แบบเดียวกับ public-courses
     let data;
     try {
       data = await res.json();
     } catch (e) {
-      const txt = await res.text().catch(() => "");
-      console.error(
-        `Fetch /api/online-courses failed (${res.status}):`,
-        txt || e
-      );
-      alert("โหลดรายการ Online Courses ไม่สำเร็จ");
+      console.error("Fetch /api/online-courses json parse error:", e);
+      alert("โหลดรายการ Online Courses ไม่สำเร็จ (invalid json)");
+      setLoadingItems(false);
       return;
     }
+
+    // ถ้ามี request ใหม่กว่าเข้ามาแล้ว -> ไม่ต้อง set state ทับ
+    if (myReqId !== reqIdRef.current) return;
 
     if (!res.ok || data?.ok === false) {
       console.error("API /api/online-courses error:", data);
       alert(
         data?.error
           ? `โหลดข้อมูลล้มเหลว: ${data.error}`
-          : "โหลดรายการ Online Courses ไม่สำเร็จ"
+          : `โหลดรายการ Online Courses ไม่สำเร็จ (${res.status})`,
       );
+      setLoadingItems(false);
       return;
     }
 
     setItems(data.items || []);
+    setLoadingItems(false);
   };
 
+  // initial load: ยิงครั้งเดียว
   useEffect(() => {
-    fetchAll();
+    if (didInitRef.current) return;
+    didInitRef.current = true;
+
+    (async () => {
+      await Promise.allSettled([fetchAll(), fetchItems()]);
+    })();
+
+    return () => {
+      if (abortRef.current) {
+        try {
+          abortRef.current.abort();
+        } catch {}
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // refetch items when filters change
   useEffect(() => {
+    if (!didInitRef.current) return;
     fetchItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, program, skill]);
 
   /* ---- lock scroll when modal open ---- */
@@ -220,148 +331,173 @@ export default function OnlineCoursesAdminPage() {
           placeholder="Search by name/teaser"
           className="w-80 rounded-xl bg-white/5 px-3 py-2 ring-1 ring-white/10"
         />
+
         <select
           value={program}
           onChange={(e) => setProgram(e.target.value)}
-          className="rounded-xl bg-white/5 px-3 py-2 ring-1 ring-white/10"
+          disabled={loadingAll}
+          className="rounded-xl bg-white/5 px-3 py-2 ring-1 ring-white/10 disabled:opacity-60"
           style={{ colorScheme: "dark" }}
         >
-          <option value="">All Programs</option>
+          <option value="">
+            {loadingAll ? "Loading programs..." : "All Programs"}
+          </option>
           {programs.map((p) => (
             <option key={p._id} value={p._id}>
               {p.program_name}
             </option>
           ))}
         </select>
+
         <select
           value={skill}
           onChange={(e) => setSkill(e.target.value)}
-          className="rounded-xl bg-white/5 px-3 py-2 ring-1 ring-white/10"
+          disabled={loadingAll}
+          className="rounded-xl bg-white/5 px-3 py-2 ring-1 ring-white/10 disabled:opacity-60"
           style={{ colorScheme: "dark" }}
         >
-          <option value="">All Skills</option>
+          <option value="">
+            {loadingAll ? "Loading skills..." : "All Skills"}
+          </option>
           {skills.map((s) => (
             <option key={s._id} value={s._id}>
               {s.skill_name}
             </option>
           ))}
         </select>
+
         <button
           onClick={fetchItems}
-          className="rounded-xl px-3 py-2 bg-white/10 hover:bg-white/20"
+          className="rounded-xl px-3 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-60"
+          disabled={loadingItems}
+          title={loadingItems ? "Loading..." : "Search"}
         >
-          Search
+          {loadingItems ? "Loading..." : "Search"}
         </button>
       </div>
 
       {/* grouped list */}
       <div className="space-y-6">
-        {grouped.map((group, idx) => (
-          <section
-            key={idx}
-            className="rounded-2xl bg-white/5 ring-1 ring-white/10"
-          >
-            {/* group header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <ProgramBadge program={group.program} />
-                <span className="font-medium">
-                  {group.program?.program_name || "Uncategorized"}
-                </span>
-                <span className="text-xs opacity-70">
-                  ({group.rows.length} course
-                  {group.rows.length > 1 ? "s" : ""})
-                </span>
-              </div>
-            </div>
-
-            {/* rows */}
-            <div className="divide-y divide-white/10">
-              {group.rows.map((it) => (
-                <div
-                  key={it._id}
-                  className="p-4 flex items-start justify-between gap-3"
-                >
-                  <div className="flex items-start gap-3">
-                    {/* cover */}
-                    {it.o_course_cover_url ? (
-                      <img
-                        src={it.o_course_cover_url}
-                        className="w-20 h-12 rounded object-cover ring-1 ring-white/10 cursor-zoom-in"
-                        alt=""
-                        title="คลิกเพื่อดูภาพใหญ่"
-                        onClick={() => setPreviewUrl(it.o_course_cover_url)}
-                      />
-                    ) : null}
-
-                    <div>
-                      <div className="text-base font-medium">
-                        {it.o_course_name}
-                      </div>
-                      <div className="text-sm opacity-80">
-                        ID: {it.o_course_id} | Lessons:{" "}
-                        {it.o_number_lessons ?? 0} | Hours:{" "}
-                        {it.o_course_traininghours ?? it.o_traininghours ?? 0} |{" "}
-                        Price: {it.o_course_price ?? 0}
-                      </div>
-                      <div className="text-sm mt-1">
-                        Skills:{" "}
-                        {it.skills?.map((s) => s.skill_name).join(", ") || "-"}
-                      </div>
-{it.previous_course && (
-  <div className="text-xs mt-1 opacity-60">
-    Previous:{" "}
-    {it.previous_course.o_course_name
-      ? `${it.previous_course.o_course_name} (${
-          it.previous_course.o_course_id || "-"
-        })`
-      : it.previous_course.o_course_id || "-"}
-  </div>
-)}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* order */}
-                    <input
-                      title="ลำดับ"
-                      type="number"
-                      className="w-16 rounded-lg bg-white/10 px-2 py-1 ring-1 ring-white/10 text-right"
-                      value={it.sort_order ?? 0}
-                      onChange={(e) =>
-                        setOrder(it._id, +e.target.value || 0)
-                      }
-                    />
-
-                    {/* copy */}
-                    <CopyMenu item={it} />
-
-                    {/* actions */}
-                    <button
-                      onClick={() => setEditItem(it)}
-                      className="rounded-lg px-3 py-1 bg-white/10 hover:bg-white/20"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (!confirm("Delete this course?")) return;
-                        await fetch(`/api/online-courses/${it._id}`, {
-                          method: "DELETE",
-                        });
-                        fetchItems();
-                      }}
-                      className="rounded-lg px-3 py-1 bg-red-500/80 hover:bg-red-500"
-                    >
-                      Delete
-                    </button>
+        {/* ✅ ระหว่างโหลด: โชว์ skeleton แทน list และ “ไม่โชว์ No courses found” */}
+        {loadingItems ? (
+          <ListSkeleton />
+        ) : (
+          <>
+            {grouped.map((group, idx) => (
+              <section
+                key={idx}
+                className="rounded-2xl bg-white/5 ring-1 ring-white/10"
+              >
+                {/* group header */}
+                <div className="flex items-center justify-between p-4 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    <ProgramBadge program={group.program} />
+                    <span className="font-medium">
+                      {group.program?.program_name || "Uncategorized"}
+                    </span>
+                    <span className="text-xs opacity-70">
+                      ({group.rows.length} course
+                      {group.rows.length > 1 ? "s" : ""})
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
-        ))}
-        {!items.length && <div className="opacity-60">No courses found.</div>}
+
+                {/* rows */}
+                <div className="divide-y divide-white/10">
+                  {group.rows.map((it) => (
+                    <div
+                      key={it._id}
+                      className="p-4 flex items-start justify-between gap-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* cover */}
+                        {it.o_course_cover_url ? (
+                          <img
+                            src={it.o_course_cover_url}
+                            className="w-20 h-12 rounded object-cover ring-1 ring-white/10 cursor-zoom-in"
+                            alt=""
+                            title="คลิกเพื่อดูภาพใหญ่"
+                            onClick={() => setPreviewUrl(it.o_course_cover_url)}
+                          />
+                        ) : null}
+
+                        <div>
+                          <div className="text-base font-medium">
+                            {it.o_course_name}
+                          </div>
+                          <div className="text-sm opacity-80">
+                            ID: {it.o_course_id} | Lessons:{" "}
+                            {it.o_number_lessons ?? 0} | Hours:{" "}
+                            {it.o_course_traininghours ??
+                              it.o_traininghours ??
+                              0}{" "}
+                            | Price: {it.o_course_price ?? 0}
+                          </div>
+                          <div className="text-sm mt-1">
+                            Skills:{" "}
+                            {it.skills?.map((s) => s.skill_name).join(", ") ||
+                              "-"}
+                          </div>
+
+                          {it.previous_course && (
+                            <div className="text-xs mt-1 opacity-60">
+                              Previous:{" "}
+                              {it.previous_course.o_course_name
+                                ? `${it.previous_course.o_course_name} (${
+                                    it.previous_course.o_course_id || "-"
+                                  })`
+                                : it.previous_course.o_course_id || "-"}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* order */}
+                        <input
+                          title="ลำดับ"
+                          type="number"
+                          className="w-16 rounded-lg bg-white/10 px-2 py-1 ring-1 ring-white/10 text-right"
+                          value={it.sort_order ?? 0}
+                          onChange={(e) =>
+                            setOrder(it._id, +e.target.value || 0)
+                          }
+                        />
+
+                        {/* copy */}
+                        <CopyMenu item={it} />
+
+                        {/* actions */}
+                        <button
+                          onClick={() => setEditItem(it)}
+                          className="rounded-lg px-3 py-1 bg-white/10 hover:bg-white/20"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm("Delete this course?")) return;
+                            await fetch(`/api/online-courses/${it._id}`, {
+                              method: "DELETE",
+                            });
+                            fetchItems();
+                          }}
+                          className="rounded-lg px-3 py-1 bg-red-500/80 hover:bg-red-500"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+
+            {!items.length && (
+              <div className="opacity-60">No courses found.</div>
+            )}
+          </>
+        )}
       </div>
 
       {/* modal: create/edit */}

@@ -84,15 +84,14 @@ export default function AdminSchedulesPage() {
     })();
   }, []);
 
-
   // จำนวนเดือนที่ต้องการแสดง (12 เดือนถัดไป)
-const MONTHS_COUNT = 12;
+  const MONTHS_COUNT = 12;
 
-// สร้างอาเรย์เดือนตั้งแต่ต้นเดือนของเดือนปัจจุบันไปอีก 12 เดือน
-const months = useMemo(() => {
-  const start = startOfMonth(new Date());
-  return Array.from({ length: MONTHS_COUNT }, (_, i) => addMonths(start, i));
-}, []);
+  // สร้างอาเรย์เดือนตั้งแต่ต้นเดือนของเดือนปัจจุบันไปอีก 12 เดือน
+  const months = useMemo(() => {
+    const start = startOfMonth(new Date());
+    return Array.from({ length: MONTHS_COUNT }, (_, i) => addMonths(start, i));
+  }, []);
   // group: program -> course -> schedules
   const grouped = useMemo(() => {
     const byProgram = new Map();
@@ -176,7 +175,7 @@ function ProgramCard({ program, months, courses, onDeleteSchedule }) {
       const sb = B.course?.sort_order ?? 0;
       if (sa !== sb) return sa - sb;
       return (A.course?.course_name || "").localeCompare(
-        B.course?.course_name || ""
+        B.course?.course_name || "",
       );
     });
   }, [courses]);
@@ -390,7 +389,7 @@ function MonthCell({ month, schedules }) {
         .filter(
           (d) =>
             d.getFullYear() === month.getFullYear() &&
-            d.getMonth() === month.getMonth()
+            d.getMonth() === month.getMonth(),
         ),
     }))
     .filter((s) => s.dates.length > 0);
@@ -417,7 +416,7 @@ function MonthCell({ month, schedules }) {
           .map(([a, b]) =>
             a.getDate() === b.getDate()
               ? `${a.getDate()}`
-              : `${a.getDate()}-${b.getDate()}`
+              : `${a.getDate()}-${b.getDate()}`,
           )
           .join(", ");
 
@@ -429,8 +428,8 @@ function MonthCell({ month, schedules }) {
           s.status === "full"
             ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
             : s.status === "nearly_full"
-            ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-            : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
+              ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+              : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
 
         const Top = (
           <>
@@ -446,8 +445,8 @@ function MonthCell({ month, schedules }) {
               {s.status === "open"
                 ? "สมัคร"
                 : s.status === "nearly_full"
-                ? "ใกล้เต็ม"
-                : "เต็ม"}
+                  ? "ใกล้เต็ม"
+                  : "เต็ม"}
             </span>
           </>
         );

@@ -1,6 +1,7 @@
+// src/app/(admin)/admin/programs/page.jsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /* -------------------- Small UI helpers -------------------- */
 const FieldLabel = ({ children, hint }) => (
@@ -26,6 +27,42 @@ function ProgramBadge({ program }) {
       className="inline-block size-3 rounded-full ring-1 ring-white/10"
       style={{ background: program?.programcolor || "#64748b" }}
     />
+  );
+}
+
+/* -------------------- Skeleton -------------------- */
+function SkeletonBlock({ className = "" }) {
+  return (
+    <div
+      className={`animate-pulse rounded-xl bg-white/10 ring-1 ring-white/10 ${className}`}
+    />
+  );
+}
+
+function ProgramsSkeleton() {
+  return (
+    <div className="grid gap-3">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 flex items-start justify-between"
+        >
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <SkeletonBlock className="h-5 w-5 rounded-[6px]" />
+              <SkeletonBlock className="h-5 w-48" />
+              <SkeletonBlock className="h-4 w-24" />
+            </div>
+            <SkeletonBlock className="h-4 w-56" />
+            <SkeletonBlock className="h-3 w-[520px] max-w-[60vw]" />
+          </div>
+          <div className="flex gap-2">
+            <SkeletonBlock className="h-8 w-16 rounded-lg" />
+            <SkeletonBlock className="h-8 w-16 rounded-lg" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -141,7 +178,7 @@ function ProgramForm({ item = {}, onSaved, onCancel }) {
                   uploadToCloudinary(
                     e.target.files?.[0],
                     "icon",
-                    "programs/icons"
+                    "programs/icons",
                   )
                 }
               />
@@ -187,7 +224,7 @@ function ProgramForm({ item = {}, onSaved, onCancel }) {
                   uploadToCloudinary(
                     e.target.files?.[0],
                     "roadmap",
-                    "programs/roadmaps"
+                    "programs/roadmaps",
                   )
                 }
               />
@@ -204,6 +241,7 @@ function ProgramForm({ item = {}, onSaved, onCancel }) {
                   href={form.program_roadmap_url}
                   target="_blank"
                   className="text-xs underline"
+                  rel="noreferrer"
                 >
                   เปิดรูป
                 </a>
@@ -242,7 +280,9 @@ function ProgramForm({ item = {}, onSaved, onCancel }) {
           border-radius: 0.75rem;
           padding: 0.625rem 0.75rem;
           outline: none;
-          transition: box-shadow 0.15s, border-color 0.15s;
+          transition:
+            box-shadow 0.15s,
+            border-color 0.15s;
         }
         .inp:focus {
           border-color: #34d399; /* emerald-400 */
@@ -256,7 +296,9 @@ function ProgramForm({ item = {}, onSaved, onCancel }) {
           border-radius: 0.75rem;
           padding: 0.625rem 0.75rem;
           outline: none;
-          transition: box-shadow 0.15s, border-color 0.15s;
+          transition:
+            box-shadow 0.15s,
+            border-color 0.15s;
         }
         .ta:focus {
           border-color: #34d399;
@@ -296,16 +338,75 @@ export default function ProgramsPage() {
   const [items, setItems] = useState([]);
   const [edit, setEdit] = useState(null);
 
+  const [loadingItems, setLoadingItems] = useState(true);
+
+  // กัน race / cancel
+  const reqIdRef = useRef(0);
+  const abortRef = useRef(null);
+
   const fetchItems = async () => {
-    const res = await fetch("/api/programs?withCounts=1", {
-      cache: "no-store",
-    });
-    const d = await res.json();
+    // cancel ก่อนหน้า
+    if (abortRef.current) {
+      try {
+        abortRef.current.abort();
+      } catch {}
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setLoadingItems(true);
+    const myReqId = ++reqIdRef.current;
+
+    let res;
+    try {
+      res = await fetch("/api/programs?withCounts=1", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } catch (e) {
+      if (e?.name === "AbortError") return;
+      console.error("Fetch /api/programs network error:", e);
+      alert("โหลด Programs ไม่สำเร็จ (network)");
+      setLoadingItems(false);
+      return;
+    }
+
+    let d;
+    try {
+      d = await res.json();
+    } catch (e) {
+      console.error("Fetch /api/programs json parse error:", e);
+      alert("โหลด Programs ไม่สำเร็จ (invalid json)");
+      setLoadingItems(false);
+      return;
+    }
+
+    // ถ้ามี request ใหม่กว่า -> ไม่ set ทับ
+    if (myReqId !== reqIdRef.current) return;
+
+    if (!res.ok || d?.ok === false) {
+      console.error("API /api/programs error:", d);
+      alert(
+        d?.error ? `โหลดข้อมูลล้มเหลว: ${d.error}` : "โหลด Programs ไม่สำเร็จ",
+      );
+      setLoadingItems(false);
+      return;
+    }
+
     setItems(d.items || []);
+    setLoadingItems(false);
   };
 
   useEffect(() => {
     fetchItems();
+    return () => {
+      if (abortRef.current) {
+        try {
+          abortRef.current.abort();
+        } catch {}
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -320,48 +421,56 @@ export default function ProgramsPage() {
         </button>
       </header>
 
-      <div className="grid gap-3">
-        {items.map((p) => (
-          <div
-            key={p._id}
-            className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 flex items-start justify-between"
-          >
-            <div>
-              <div className="flex items-center gap-2">
-                <ProgramBadge program={p} />
-                <div className="text-lg font-medium">{p.program_name}</div>
-                <div className="text-xs opacity-70">ID: {p.program_id}</div>
+      {/* list */}
+      {loadingItems ? (
+        <ProgramsSkeleton />
+      ) : (
+        <div className="grid gap-3">
+          {items.map((p) => (
+            <div
+              key={p._id}
+              className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 flex items-start justify-between"
+            >
+              <div>
+                <div className="flex items-center gap-2">
+                  <ProgramBadge program={p} />
+                  <div className="text-lg font-medium">{p.program_name}</div>
+                  <div className="text-xs opacity-70">ID: {p.program_id}</div>
+                </div>
+                <div className="text-sm opacity-80 mt-1">
+                  Public: {p.counts?.public || 0} | Online:{" "}
+                  {p.counts?.online || 0}
+                </div>
+                {p.program_teaser && (
+                  <p className="text-sm opacity-80 mt-1">{p.program_teaser}</p>
+                )}
               </div>
-              <div className="text-sm opacity-80 mt-1">
-                Public: {p.counts?.public || 0} | Online:{" "}
-                {p.counts?.online || 0}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEdit(p)}
+                  className="rounded-lg px-3 py-1 bg-white/10"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm("Delete?")) return;
+                    await fetch(`/api/programs/${p._id}`, { method: "DELETE" });
+                    fetchItems();
+                  }}
+                  className="rounded-lg px-3 py-1 bg-red-500/80 hover:bg-red-500"
+                >
+                  Delete
+                </button>
               </div>
-              {p.program_teaser && (
-                <p className="text-sm opacity-80 mt-1">{p.program_teaser}</p>
-              )}
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setEdit(p)}
-                className="rounded-lg px-3 py-1 bg-white/10"
-              >
-                Edit
-              </button>
-              <button
-                onClick={async () => {
-                  if (!confirm("Delete?")) return;
-                  await fetch(`/api/programs/${p._id}`, { method: "DELETE" });
-                  fetchItems();
-                }}
-                className="rounded-lg px-3 py-1 bg-red-500/80 hover:bg-red-500"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
-        {!items.length && <div className="opacity-60">No programs found.</div>}
-      </div>
+          ))}
+          {!items.length && (
+            <div className="opacity-60">No programs found.</div>
+          )}
+        </div>
+      )}
 
       {/* Modal */}
       {edit !== null && (
