@@ -39,10 +39,11 @@ const parseDates = (arr) =>
     .sort((a, b) => a - b);
 
 /* ---------- GET ---------- */
-export async function GET(_req, { params }) {
+export async function GET(_req, ctx) {
   await dbConnect();
+  const { id } = await ctx.params;
 
-  const item = await Schedule.findById(params.id)
+  const item = await Schedule.findById(id)
     .populate({ path: "course", populate: { path: "program" } })
     .lean();
 
@@ -51,20 +52,19 @@ export async function GET(_req, { params }) {
 }
 
 /* ---------- PATCH ---------- */
-export async function PATCH(req, { params }) {
+export async function PATCH(req, ctx) {
   await dbConnect();
+  const { id } = await ctx.params;
 
   const body = await req.json();
 
-  // allow only editable fields
   const payload = {};
-
   if (body.status) payload.status = body.status;
   if (body.type) payload.type = body.type;
 
-  // IMPORTANT: normalize dates on update too
   if (Array.isArray(body.dates)) {
     const normalized = parseDates(body.dates);
+    // ถ้าต้องการ allow clear dates ให้รองรับ [] ด้วย ให้ปรับตรงนี้ได้
     if (normalized.length) payload.dates = normalized;
   }
 
@@ -72,7 +72,7 @@ export async function PATCH(req, { params }) {
     payload.signup_url = body.signup_url || undefined;
   }
 
-  const item = await Schedule.findByIdAndUpdate(params.id, payload, {
+  const item = await Schedule.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,
   }).populate({ path: "course", populate: { path: "program" } });
@@ -82,10 +82,11 @@ export async function PATCH(req, { params }) {
 }
 
 /* ---------- DELETE ---------- */
-export async function DELETE(_req, { params }) {
+export async function DELETE(_req, ctx) {
   await dbConnect();
+  const { id } = await ctx.params;
 
-  const gone = await Schedule.findByIdAndDelete(params.id);
+  const gone = await Schedule.findByIdAndDelete(id);
   if (!gone) return new Response("Not found", { status: 404 });
 
   return Response.json({ ok: true });

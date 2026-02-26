@@ -13,6 +13,7 @@ import {
   HiOutlineSparkles,
   HiOutlineCalendar,
   HiOutlineAcademicCap,
+  HiOutlineBriefcase,
   HiMiniCalendarDays,
   HiOutlinePower,
   HiOutlineUserGroup,
@@ -119,7 +120,7 @@ export default function AdminLayout({ children }) {
       try {
         setSearchLoading(true);
         const res = await fetch(
-          `/api/admin/search-courses?q=${encodeURIComponent(trimmed)}&limit=10`
+          `/api/admin/search-courses?q=${encodeURIComponent(trimmed)}&limit=10`,
         );
         if (!res.ok) throw new Error("Search failed");
         const data = await res.json();
@@ -146,7 +147,7 @@ export default function AdminLayout({ children }) {
     const base = baseMap[item.kind] || "/admin/dashboard";
 
     const url = `${base}?search=${encodeURIComponent(
-      item.code || item.name || ""
+      item.code || item.name || "",
     )}`;
 
     router.push(url);
@@ -277,21 +278,21 @@ export default function AdminLayout({ children }) {
                   item.kind === "public"
                     ? "Public"
                     : item.kind === "online"
-                    ? "Online"
-                    : item.kind === "instructor"
-                    ? "Instructor"
-                    : item.kind === "event"
-                    ? "Event"
-                    : "Other";
+                      ? "Online"
+                      : item.kind === "instructor"
+                        ? "Instructor"
+                        : item.kind === "event"
+                          ? "Event"
+                          : "Other";
 
                 const kindClass =
                   item.kind === "public"
                     ? "bg-emerald-500/10 text-emerald-300 border-emerald-400/40"
                     : item.kind === "online"
-                    ? "bg-sky-500/10 text-sky-300 border-sky-400/40"
-                    : item.kind === "instructor"
-                    ? "bg-amber-500/10 text-amber-300 border-amber-400/40"
-                    : "bg-violet-500/10 text-violet-300 border-violet-400/40";
+                      ? "bg-sky-500/10 text-sky-300 border-sky-400/40"
+                      : item.kind === "instructor"
+                        ? "bg-amber-500/10 text-amber-300 border-amber-400/40"
+                        : "bg-violet-500/10 text-violet-300 border-violet-400/40";
 
                 return (
                   <button
@@ -361,17 +362,19 @@ export default function AdminLayout({ children }) {
         >
           {/* LOGO + TITLE */}
           <div className="relative flex items-center px-2">
-            <img
-              src="/logo-9exp-sec.png"
-              alt="logo"
-              width={32}
-              height={32}
-              className="h-8 w-8 rounded-full object-contain"
-            />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
+              <img
+                src="/logo-9x.png"
+                alt="9EXP"
+                className="block h-7 w-7 object-contain"
+                loading="lazy"
+                draggable={false}
+              />
+            </div>
 
             {sidebarOpen && (
               <span className="ml-2 text-lg font-semibold tracking-wide">
-                9EXP.SEC
+                9X Ops: Data System & API
               </span>
             )}
 
@@ -418,6 +421,14 @@ export default function AdminLayout({ children }) {
               href="/admin/courses/online"
               icon={HiOutlineBookOpen}
               label="Online Courses"
+              sidebarOpen={sidebarOpen}
+              isDark={isDark}
+            />
+
+            <NavItem
+              href="/admin/career-path"
+              icon={HiOutlineBriefcase}
+              label="Career Path"
               sidebarOpen={sidebarOpen}
               isDark={isDark}
             />
