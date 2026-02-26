@@ -15,6 +15,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "jose": "^6.1.0",
+    "lucide-react": "^0.575.0",
     "mongoose": "^8.18.2",
     "next": "15.5.7",
     "postmark": "^4.0.5",

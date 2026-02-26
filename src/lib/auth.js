@@ -19,10 +19,17 @@ export async function verifyPassword(plain, hash) {
 
 /* ---------------- JWT utils ---------------- */
 function getSecretUint8() {
-  const sec =
-    process.env.AUTH_SECRET ||
-    process.env.JWT_SECRET ||
-    "dev-secret-change-me";
+  const sec = process.env.AUTH_SECRET || process.env.JWT_SECRET;
+
+  if (!sec) {
+    // ✅ production ต้องมีเสมอ
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Missing AUTH_SECRET/JWT_SECRET in production");
+    }
+    // dev fallback
+    return new TextEncoder().encode("dev-secret-change-me");
+  }
+
   return new TextEncoder().encode(sec);
 }
 const SECRET = getSecretUint8();
@@ -37,7 +44,7 @@ const AUDIENCE = process.env.AUTH_AUDIENCE || "9expert-admin";
  */
 export async function signAuthJWT(
   payload = {},
-  { expiresIn = process.env.AUTH_TTL || "2h", scopes = [] } = {}
+  { expiresIn = process.env.AUTH_TTL || "2h", scopes = [] } = {},
 ) {
   const sub = payload.sub || payload.uid;
   if (!sub) throw new Error("signAuthJWT: 'sub' (user id) is required");
@@ -47,7 +54,7 @@ export async function signAuthJWT(
     role: payload.role,
     name: payload.name,
     email: payload.email, // ถ้าไม่จำเป็น แนะนำตัดออกได้
-    scopes,               // ["courses.read", "courses.write"] เป็นต้น
+    scopes, // ["courses.read", "courses.write"] เป็นต้น
   };
 
   return await new SignJWT(publicClaims)
@@ -55,7 +62,7 @@ export async function signAuthJWT(
     .setSubject(String(sub))
     .setIssuer(ISSUER)
     .setAudience(AUDIENCE)
-    .setJti(randomUUID())    // เผื่อทำ revoke list ในอนาคต
+    .setJti(randomUUID()) // เผื่อทำ revoke list ในอนาคต
     .setIssuedAt()
     .setNotBefore("0s")
     .setExpirationTime(expiresIn)
@@ -81,7 +88,7 @@ export async function verifyAuthJWT(token) {
 }
 
 /* ---------------- Cookie helpers ---------------- */
-/** 
+/**
  * ใช้ prefix __Host- ช่วยบังคับ secure+path=/
  * ต้องทำงานบน HTTPS เท่านั้น (production)
  */
@@ -90,9 +97,11 @@ export const AUTH_COOKIE_NAME = "__Host-auth";
 export function setAuthCookie(res, token, { maxAgeSec } = {}) {
   // ถ้าไม่ส่ง maxAge ใช้อายุจาก env หรือ 2 ชั่วโมง
   const fallback = Number(process.env.AUTH_COOKIE_TTL_SEC || 2 * 60 * 60);
+  const isProd = process.env.NODE_ENV === "production";
+
   res.cookies.set(AUTH_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: true,
+    secure: isProd, // ✅ prod-only (dev บน http จะ set ได้)
     sameSite: "lax",
     path: "/",
     maxAge: typeof maxAgeSec === "number" ? maxAgeSec : fallback,
@@ -100,9 +109,11 @@ export function setAuthCookie(res, token, { maxAgeSec } = {}) {
 }
 
 export function clearAuthCookie(res) {
+  const isProd = process.env.NODE_ENV === "production";
+
   res.cookies.set(AUTH_COOKIE_NAME, "", {
     httpOnly: true,
-    secure: true,
+    secure: isProd,
     sameSite: "lax",
     path: "/",
     maxAge: 0,

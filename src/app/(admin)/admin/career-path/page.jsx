@@ -49,7 +49,7 @@ function ListSkeleton() {
       </div>
 
       {/* cards skeleton */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
         {Array.from({ length: 9 }).map((_, i) => (
           <div
             key={i}
@@ -179,7 +179,7 @@ export default function CareerPathAdminListPage() {
           ไม่พบรายการ
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
           {items.map((it) => {
             const cover = it?.coverImage?.url || "";
             const s = it?.stats || {};
