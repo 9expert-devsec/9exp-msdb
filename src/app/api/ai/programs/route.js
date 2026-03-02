@@ -16,6 +16,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:3000",
   "https://9experttraining.com",
   "https://www.9experttraining.com",
+  "https://exam-admin.9experttraining.com",
 ]);
 
 function buildCorsHeaders(req) {
