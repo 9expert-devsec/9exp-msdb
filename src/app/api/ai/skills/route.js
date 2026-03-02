@@ -105,7 +105,7 @@ export async function GET(req) {
   }
 }
 
-// ❌ AI ไม่ควรสร้าง/แก้ skill
+// ❌ AI ไม่ควรสร้าง/แก้ skill 
 export async function POST(req) {
   const res = NextResponse.json(
     { ok: false, error: "POST not allowed on AI route" },
