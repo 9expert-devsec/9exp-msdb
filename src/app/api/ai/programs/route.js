@@ -2,9 +2,9 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import Program from "@/models/Program";
+import Skill from "@/models/Skill";
 import PublicCourse from "@/models/PublicCourse";
 import OnlineCourse from "@/models/OnlineCourse";
-
 import { checkAiApiKey } from "@/lib/ai-auth";
 
 export const runtime = "nodejs";
@@ -16,16 +16,11 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:3000",
   "https://9experttraining.com",
   "https://www.9experttraining.com",
-  "https://exam-admin.9experttraining.com"
 ]);
 
 function buildCorsHeaders(req) {
   const origin = req.headers.get("origin");
-
-  // server-to-server จะไม่มี Origin -> ไม่ต้องใส่ CORS
   if (!origin) return {};
-
-  // ไม่อยู่ใน allowlist -> ไม่ส่ง ACAO (ให้ browser บล็อกเอง)
   if (!ALLOWED_ORIGINS.has(origin)) return { Vary: "Origin" };
 
   return {
@@ -43,17 +38,73 @@ function withCors(req, res) {
   return res;
 }
 
-/* ================= Preflight ================= */
-
 export async function OPTIONS(req) {
   const res = new NextResponse(null, { status: 204 });
   return withCors(req, res);
 }
 
+/* ================= helpers ================= */
+
+function truthyParam(v) {
+  if (v == null) return false;
+  const s = String(v).trim().toLowerCase();
+  return s === "1" || s === "true" || s === "yes" || s === "y";
+}
+
+async function buildProgramToSkillIdsMap(skillSelect) {
+  // map: programId -> Set(skillId)
+  const pipes = [
+    { $match: { program: { $ne: null }, skills: { $exists: true, $ne: [] } } },
+    { $unwind: "$skills" },
+    {
+      $group: {
+        _id: "$program",
+        skillIds: { $addToSet: "$skills" },
+      },
+    },
+  ];
+
+  const [pubAgg, onAgg] = await Promise.all([
+    PublicCourse.aggregate(pipes),
+    OnlineCourse.aggregate(pipes),
+  ]);
+
+  const map = new Map(); // key: String(programId) -> Set(String(skillId))
+
+  function addRows(rows) {
+    for (const r of rows || []) {
+      const pid = String(r._id);
+      if (!map.has(pid)) map.set(pid, new Set());
+      const set = map.get(pid);
+      for (const sid of r.skillIds || []) {
+        if (sid) set.add(String(sid));
+      }
+    }
+  }
+
+  addRows(pubAgg);
+  addRows(onAgg);
+
+  // รวม skill ids ทั้งหมดเพื่อ query ครั้งเดียว
+  const allSkillIds = [];
+  for (const set of map.values()) {
+    for (const sid of set) allSkillIds.push(sid);
+  }
+  const uniqSkillIds = [...new Set(allSkillIds)];
+
+  const skills = uniqSkillIds.length
+    ? await Skill.find({ _id: { $in: uniqSkillIds } })
+        .select(skillSelect)
+        .lean()
+    : [];
+
+  const skillMap = new Map(skills.map((s) => [String(s._id), s]));
+  return { programToSkillIds: map, skillMap };
+}
+
 /* ================= Handlers ================= */
 
 export async function GET(req) {
-  // 1) ตรวจ API Key ก่อน (แต่ต้อง wrap CORS ด้วยเสมอ)
   const authError = checkAiApiKey(req);
   if (authError) return withCors(req, authError);
 
@@ -61,9 +112,9 @@ export async function GET(req) {
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
-    const withCounts = searchParams.get("withCounts");
+    const withCounts = truthyParam(searchParams.get("withCounts"));
+    const withSkills = truthyParam(searchParams.get("withSkills"));
 
-    // ดึงข้อมูล Programs ทั้งหมด
     const items = await Program.find()
       .select(
         "program_id program_name programiconurl programcolor sort_order createdAt updatedAt",
@@ -71,8 +122,11 @@ export async function GET(req) {
       .sort({ program_name: 1 })
       .lean();
 
-    // ถ้าต้องการจำนวนคอร์ส (public/online)
-    if (withCounts) {
+    // counts แบบเดิม (จำนวนคอร์ส public/online)
+    let countsMapPub = new Map();
+    let countsMapOn = new Map();
+
+    if (withCounts && items.length) {
       const ids = items.map((p) => p._id);
 
       const [pubCounts, onCounts] = await Promise.all([
@@ -86,33 +140,48 @@ export async function GET(req) {
         ]),
       ]);
 
-      const pubMap = Object.fromEntries(
-        pubCounts.map((i) => [String(i._id), i.n]),
-      );
-      const onMap = Object.fromEntries(
-        onCounts.map((i) => [String(i._id), i.n]),
-      );
-
-      const enriched = items.map((p) => ({
-        ...p,
-        counts: {
-          public: pubMap[String(p._id)] || 0,
-          online: onMap[String(p._id)] || 0,
-        },
-      }));
-
-      const res = NextResponse.json(
-        { ok: true, items: enriched },
-        { status: 200 },
-      );
-      return withCors(req, res);
+      countsMapPub = new Map(pubCounts.map((i) => [String(i._id), i.n]));
+      countsMapOn = new Map(onCounts.map((i) => [String(i._id), i.n]));
     }
+
+    // แนบ skills (derive จาก courses)
+    let programToSkillIds = null;
+    let skillMap = null;
+
+    if (withSkills && items.length) {
+      const skillSelect =
+        "_id skill_id skill_name skilliconurl skillcolor skill_teaser";
+      const built = await buildProgramToSkillIdsMap(skillSelect);
+      programToSkillIds = built.programToSkillIds;
+      skillMap = built.skillMap;
+    }
+
+    // enrich
+    const enriched = items.map((p) => {
+      const out = { ...p };
+
+      if (withCounts) {
+        out.counts = {
+          public: countsMapPub.get(String(p._id)) || 0,
+          online: countsMapOn.get(String(p._id)) || 0,
+        };
+      }
+
+      if (withSkills && programToSkillIds && skillMap) {
+        const set = programToSkillIds.get(String(p._id)) || new Set();
+        const skills = [...set].map((sid) => skillMap.get(sid)).filter(Boolean);
+        out.skills = skills;
+        out.skillCount = skills.length;
+      }
+
+      return out;
+    });
 
     const res = NextResponse.json(
       {
         ok: true,
-        summary: { total: items.length },
-        items,
+        summary: { total: enriched.length },
+        items: enriched,
       },
       { status: 200 },
     );
@@ -126,7 +195,6 @@ export async function GET(req) {
   }
 }
 
-// ❌ AI ไม่ควรสร้าง/แก้ไขโปรแกรม — ปิด POST ทิ้ง
 export async function POST(req) {
   const res = NextResponse.json(
     { ok: false, error: "POST not allowed on AI route" },
