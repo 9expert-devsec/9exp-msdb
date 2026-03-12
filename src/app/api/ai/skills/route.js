@@ -1,4 +1,3 @@
-// src/app/api/ai/skills/route.js
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import Skill from "@/models/Skill";
@@ -51,11 +50,13 @@ function truthyParam(v) {
   return s === "1" || s === "true" || s === "yes" || s === "y";
 }
 
+function falseyParam(v) {
+  if (v == null) return false;
+  const s = String(v).trim().toLowerCase();
+  return s === "0" || s === "false" || s === "no" || s === "n";
+}
+
 async function buildSkillToProgramIdsMap(programSelect) {
-  // สร้าง map: skillId -> Set(programId) จากทั้ง PublicCourse และ OnlineCourse
-  // NOTE: สมมติ schema course มี fields:
-  //   - program: ObjectId (ref Program)
-  //   - skills: [ObjectId] (ref Skill)
   const pipes = [
     { $match: { program: { $ne: null }, skills: { $exists: true, $ne: [] } } },
     { $unwind: "$skills" },
@@ -72,7 +73,7 @@ async function buildSkillToProgramIdsMap(programSelect) {
     OnlineCourse.aggregate(pipes),
   ]);
 
-  const map = new Map(); // key: String(skillId) -> Set(String(programId))
+  const map = new Map();
 
   function addRows(rows) {
     for (const r of rows || []) {
@@ -88,7 +89,6 @@ async function buildSkillToProgramIdsMap(programSelect) {
   addRows(pubAgg);
   addRows(onAgg);
 
-  // รวม program ids ทั้งหมดเพื่อ query ครั้งเดียว
   const allProgramIds = [];
   for (const set of map.values()) {
     for (const pid of set) allProgramIds.push(pid);
@@ -115,7 +115,12 @@ export async function GET(req) {
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
-    const withPrograms = truthyParam(searchParams.get("withPrograms"));
+
+    // ✅ default = true
+    // ปิดได้ด้วย /api/ai/skills?withPrograms=0
+    const withPrograms = searchParams.has("withPrograms")
+      ? !falseyParam(searchParams.get("withPrograms"))
+      : true;
 
     const items = await Skill.find()
       .select(
@@ -123,6 +128,12 @@ export async function GET(req) {
       )
       .sort({ skill_name: 1 })
       .lean();
+
+    // ใส่ค่า default ให้ทุกตัวก่อน เพื่อ response shape คงที่
+    for (const s of items) {
+      s.programs = [];
+      s.programCount = 0;
+    }
 
     if (withPrograms && items.length) {
       const programSelect =

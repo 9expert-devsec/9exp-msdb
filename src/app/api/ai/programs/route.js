@@ -1,4 +1,3 @@
-// src/app/api/ai/programs/route.js
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import Program from "@/models/Program";
@@ -51,8 +50,13 @@ function truthyParam(v) {
   return s === "1" || s === "true" || s === "yes" || s === "y";
 }
 
+function falseyParam(v) {
+  if (v == null) return false;
+  const s = String(v).trim().toLowerCase();
+  return s === "0" || s === "false" || s === "no" || s === "n";
+}
+
 async function buildProgramToSkillIdsMap(skillSelect) {
-  // map: programId -> Set(skillId)
   const pipes = [
     { $match: { program: { $ne: null }, skills: { $exists: true, $ne: [] } } },
     { $unwind: "$skills" },
@@ -69,7 +73,7 @@ async function buildProgramToSkillIdsMap(skillSelect) {
     OnlineCourse.aggregate(pipes),
   ]);
 
-  const map = new Map(); // key: String(programId) -> Set(String(skillId))
+  const map = new Map();
 
   function addRows(rows) {
     for (const r of rows || []) {
@@ -85,7 +89,6 @@ async function buildProgramToSkillIdsMap(skillSelect) {
   addRows(pubAgg);
   addRows(onAgg);
 
-  // รวม skill ids ทั้งหมดเพื่อ query ครั้งเดียว
   const allSkillIds = [];
   for (const set of map.values()) {
     for (const sid of set) allSkillIds.push(sid);
@@ -112,17 +115,23 @@ export async function GET(req) {
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
+
+    // ✅ counts ยัง optional เหมือนเดิม
     const withCounts = truthyParam(searchParams.get("withCounts"));
-    const withSkills = truthyParam(searchParams.get("withSkills"));
+
+    // ✅ default = true
+    // ปิดได้ด้วย /api/ai/programs?withSkills=0
+    const withSkills = searchParams.has("withSkills")
+      ? !falseyParam(searchParams.get("withSkills"))
+      : true;
 
     const items = await Program.find()
       .select(
-        "program_id program_name programiconurl programcolor sort_order createdAt updatedAt",
+        "program_id program_name programiconurl programcolor sort_order createdAt updatedAt"
       )
       .sort({ program_name: 1 })
       .lean();
 
-    // counts แบบเดิม (จำนวนคอร์ส public/online)
     let countsMapPub = new Map();
     let countsMapOn = new Map();
 
@@ -144,7 +153,6 @@ export async function GET(req) {
       countsMapOn = new Map(onCounts.map((i) => [String(i._id), i.n]));
     }
 
-    // แนบ skills (derive จาก courses)
     let programToSkillIds = null;
     let skillMap = null;
 
@@ -156,9 +164,12 @@ export async function GET(req) {
       skillMap = built.skillMap;
     }
 
-    // enrich
     const enriched = items.map((p) => {
-      const out = { ...p };
+      const out = {
+        ...p,
+        skills: [],
+        skillCount: 0,
+      };
 
       if (withCounts) {
         out.counts = {
@@ -183,13 +194,13 @@ export async function GET(req) {
         summary: { total: enriched.length },
         items: enriched,
       },
-      { status: 200 },
+      { status: 200 }
     );
     return withCors(req, res);
   } catch (err) {
     const res = NextResponse.json(
       { ok: false, error: err?.message || "Server error" },
-      { status: 500 },
+      { status: 500 }
     );
     return withCors(req, res);
   }
@@ -198,7 +209,7 @@ export async function GET(req) {
 export async function POST(req) {
   const res = NextResponse.json(
     { ok: false, error: "POST not allowed on AI route" },
-    { status: 405 },
+    { status: 405 }
   );
   return withCors(req, res);
 }
