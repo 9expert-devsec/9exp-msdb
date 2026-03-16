@@ -5,44 +5,22 @@ import Skill from "@/models/Skill";
 import PublicCourse from "@/models/PublicCourse";
 import OnlineCourse from "@/models/OnlineCourse";
 import { checkAiApiKey } from "@/lib/ai-auth";
+import { corsHeaders, handleOptions } from "@/lib/cors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* ================= CORS helpers ================= */
-
-const ALLOWED_ORIGINS = new Set([
-  "http://localhost:3000",
-  "https://9experttraining.com",
-  "https://www.9experttraining.com",
-]);
-
-function buildCorsHeaders(req) {
-  const origin = req.headers.get("origin");
-  if (!origin) return {};
-  if (!ALLOWED_ORIGINS.has(origin)) return { Vary: "Origin" };
-
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, x-api-key",
-    "Access-Control-Max-Age": "86400",
-    Vary: "Origin",
-  };
-}
-
-function withCors(req, res) {
-  const h = buildCorsHeaders(req);
-  for (const [k, v] of Object.entries(h)) res.headers.set(k, v);
-  return res;
-}
-
-export async function OPTIONS(req) {
-  const res = new NextResponse(null, { status: 204 });
-  return withCors(req, res);
-}
+export const OPTIONS = handleOptions;
 
 /* ================= helpers ================= */
+
+function applyCors(req, res) {
+  const h = corsHeaders(req.headers.get("origin"));
+  for (const [k, v] of Object.entries(h)) {
+    res.headers.set(k, v);
+  }
+  return res;
+}
 
 function truthyParam(v) {
   if (v == null) return false;
@@ -109,25 +87,23 @@ async function buildProgramToSkillIdsMap(skillSelect) {
 
 export async function GET(req) {
   const authError = checkAiApiKey(req);
-  if (authError) return withCors(req, authError);
+  if (authError) return applyCors(req, authError);
 
   try {
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
 
-    // ✅ counts ยัง optional เหมือนเดิม
     const withCounts = truthyParam(searchParams.get("withCounts"));
 
-    // ✅ default = true
-    // ปิดได้ด้วย /api/ai/programs?withSkills=0
+    // default = true
     const withSkills = searchParams.has("withSkills")
       ? !falseyParam(searchParams.get("withSkills"))
       : true;
 
     const items = await Program.find()
       .select(
-        "program_id program_name programiconurl programcolor sort_order createdAt updatedAt"
+        "program_id program_name programiconurl programcolor sort_order createdAt updatedAt",
       )
       .sort({ program_name: 1 })
       .lean();
@@ -194,22 +170,23 @@ export async function GET(req) {
         summary: { total: enriched.length },
         items: enriched,
       },
-      { status: 200 }
+      { status: 200 },
     );
-    return withCors(req, res);
+
+    return applyCors(req, res);
   } catch (err) {
     const res = NextResponse.json(
       { ok: false, error: err?.message || "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
-    return withCors(req, res);
+    return applyCors(req, res);
   }
 }
 
 export async function POST(req) {
   const res = NextResponse.json(
     { ok: false, error: "POST not allowed on AI route" },
-    { status: 405 }
+    { status: 405 },
   );
-  return withCors(req, res);
+  return applyCors(req, res);
 }
