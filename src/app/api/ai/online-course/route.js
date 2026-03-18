@@ -6,8 +6,20 @@ import "@/models/Program";
 import "@/models/Skill";
 
 import { checkAiApiKey } from "@/lib/ai-auth";
+import { corsHeaders, handleOptions } from "@/lib/cors";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export const OPTIONS = handleOptions;
+
+function applyCors(req, res) {
+  const h = corsHeaders(req.headers.get("origin"));
+  for (const [k, v] of Object.entries(h)) {
+    res.headers.set(k, v);
+  }
+  return res;
+}
 
 const toInt = (v, d = 0) => {
   const n = parseInt(v, 10);
@@ -15,9 +27,8 @@ const toInt = (v, d = 0) => {
 };
 
 export async function GET(req) {
-  // 1) ตรวจ API Key
   const authError = checkAiApiKey(req);
-  if (authError) return authError;
+  if (authError) return applyCors(req, authError);
 
   try {
     await dbConnect();
@@ -30,7 +41,7 @@ export async function GET(req) {
 
     const limit = Math.min(
       Math.max(toInt(searchParams.get("limit"), 50), 1),
-      300
+      300,
     );
     const page = Math.max(toInt(searchParams.get("page"), 1), 1);
 
@@ -49,29 +60,28 @@ export async function GET(req) {
 
     const items = await OnlineCourse.find(where)
       .select(
-        "o_course_cover_url o_course_id o_course_name o_course_teaser o_course_levels o_course_link o_course_price o_course_duration program skills sort_order createdAt updatedAt"
+        "o_course_cover_url o_course_id o_course_name o_course_teaser o_course_levels o_course_link o_course_price o_course_duration program skills sort_order createdAt updatedAt",
       )
       .populate(
         "program",
-        "program_id program_name programiconurl programcolor sort_order"
+        "program_id program_name programiconurl programcolor sort_order",
       )
-      .populate(
-        "skills",
-        "skill_id skill_name skilliconurl skillcolor"
-      )
+      .populate("skills", "skill_id skill_name skilliconurl skillcolor")
       .sort({ sort_order: 1, createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
 
-    return NextResponse.json(
+    const res = NextResponse.json(
       { ok: true, total, page, limit, items },
-      { status: 200 }
+      { status: 200 },
     );
+    return applyCors(req, res);
   } catch (err) {
-    return NextResponse.json(
+    const res = NextResponse.json(
       { ok: false, error: err?.message || "Internal Server Error" },
-      { status: 500 }
+      { status: 500 },
     );
+    return applyCors(req, res);
   }
 }

@@ -5,8 +5,20 @@ import Instructor from "@/models/Instructor";
 import "@/models/Program";
 
 import { checkAiApiKey } from "@/lib/ai-auth";
+import { corsHeaders, handleOptions } from "@/lib/cors";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export const OPTIONS = handleOptions;
+
+function applyCors(req, res) {
+  const h = corsHeaders(req.headers.get("origin"));
+  for (const [k, v] of Object.entries(h)) {
+    res.headers.set(k, v);
+  }
+  return res;
+}
 
 /**
  * GET /api/ai/instructors
@@ -16,13 +28,12 @@ export const dynamic = "force-dynamic";
  *  - limit    : default 100, max 300
  */
 export async function GET(req) {
-  // 1) AUTH
   const authError = checkAiApiKey(req);
-  if (authError) return authError;
-
-  await dbConnect();
+  if (authError) return applyCors(req, authError);
 
   try {
+    await dbConnect();
+
     const { searchParams } = new URL(req.url);
 
     const q = searchParams.get("q")?.trim();
@@ -35,12 +46,10 @@ export async function GET(req) {
 
     const filter = {};
 
-    // filter by program
     if (program) {
       filter.programs = program;
     }
 
-    // search thai / english
     if (q) {
       filter.$or = [
         { name: { $regex: q, $options: "i" } },
@@ -59,14 +68,14 @@ export async function GET(req) {
       .limit(limit)
       .lean();
 
-    return NextResponse.json(
+    const res = NextResponse.json(
       {
         ok: true,
         total: items.length,
         items: items.map((i) => ({
           _id: i._id,
-          name_th: i.name,                 // ✅ ภาษาไทย
-          name_en: i.name_en || "",         // ✅ ภาษาอังกฤษ
+          name_th: i.name,
+          name_en: i.name_en || "",
           bio: i.bio || "",
           programs: i.programs || [],
           updatedAt: i.updatedAt,
@@ -74,11 +83,15 @@ export async function GET(req) {
       },
       { status: 200 }
     );
+
+    return applyCors(req, res);
   } catch (err) {
     console.error("GET /api/ai/instructors error:", err);
-    return NextResponse.json(
+
+    const res = NextResponse.json(
       { ok: false, error: err?.message || "Internal error" },
       { status: 500 }
     );
+    return applyCors(req, res);
   }
 }
