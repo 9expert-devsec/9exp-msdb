@@ -77,7 +77,7 @@ export async function GET() {
     // ---------- instructors ----------
     const instructorsRaw = await Instructor.find(
       {},
-      { name: 1, programs: 1 }
+      { name: 1, name_en: 1, programs: 1, photo_url: 1 }
     ).lean();
 
     const totalInstructors = instructorsRaw.length;
@@ -95,6 +95,8 @@ export async function GET() {
       return {
         _id: String(ins._id),
         name: ins.name || "",
+        name_en: ins.name_en || "",
+        photo_url: ins.photo_url || "",
         programCount,
       };
     });

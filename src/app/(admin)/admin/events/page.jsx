@@ -28,7 +28,7 @@ export default async function AdminEventsPage() {
         <h1 className="text-2xl font-semibold">Events</h1>
         <Link
           href="/admin/events/new"
-          className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+          className="px-3 py-2 rounded-lg bg-[var(--surface-glass-hover)] hover:bg-[var(--surface-glass-hover)]"
         >
           + Create Event
         </Link>
@@ -38,7 +38,7 @@ export default async function AdminEventsPage() {
         {events.map((ev) => (
           <div
             key={ev._id}
-            className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden"
+            className="rounded-2xl bg-[var(--surface-glass)] border border-[var(--border-primary)] overflow-hidden"
           >
             {ev.banner_url ? (
               <img
@@ -47,7 +47,7 @@ export default async function AdminEventsPage() {
                 className="w-full h-40 object-cover"
               />
             ) : (
-              <div className="w-full h-40 bg-slate-800" />
+              <div className="w-full h-40 bg-[var(--surface-card-hover)]" />
             )}
             <div className="p-4 space-y-1">
               <div className="text-sm opacity-70">{ev.location || "—"}</div>

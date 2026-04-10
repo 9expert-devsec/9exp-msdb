@@ -70,7 +70,7 @@ export async function GET(req) {
 
     const items = await PublicCourse.find(filter)
       .select(
-        "course_cover_url course_id course_name course_teaser course_levels course_price course_duration course_trainingdays course_traininghours tags sort_order program skills previous_course",
+        "course_cover_url course_id course_name course_teaser course_levels course_price course_duration course_trainingdays course_traininghours tags sort_order program skills previous_course related_courses",
       )
       .populate({
         path: "program",
@@ -83,6 +83,10 @@ export async function GET(req) {
       .populate({
         path: "previous_course",
         select: "course_id course_name",
+      })
+      .populate({
+        path: "related_courses",
+        select: "course_id course_name course_teaser course_cover_url course_price course_trainingdays course_traininghours",
       })
       .sort({ sort_order: 1, course_name: 1 })
       .skip((page - 1) * limit)

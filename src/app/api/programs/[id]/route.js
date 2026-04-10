@@ -5,8 +5,8 @@ import { Types } from "mongoose";
 export const dynamic = "force-dynamic";
 
 export async function GET(_, { params }) {
+  const { id } = await params;
   await dbConnect();
-  const { id } = params;
   if (!Types.ObjectId.isValid(id)) return new Response("Invalid id", { status: 400 });
   const item = await Program.findById(id);
   if (!item) return new Response("Not found", { status: 404 });
@@ -14,8 +14,8 @@ export async function GET(_, { params }) {
 }
 
 export async function PATCH(req, { params }) {
+  const { id } = await params;
   await dbConnect();
-  const { id } = params;
   const payload = await req.json();
   const item = await Program.findByIdAndUpdate(id, payload, { new: true });
   if (!item) return new Response("Not found", { status: 404 });
@@ -23,8 +23,8 @@ export async function PATCH(req, { params }) {
 }
 
 export async function DELETE(_, { params }) {
+  const { id } = await params;
   await dbConnect();
-  const { id } = params;
   await Program.findByIdAndDelete(id);
   return new Response(null, { status: 204 });
 }

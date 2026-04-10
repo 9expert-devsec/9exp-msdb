@@ -194,7 +194,7 @@ export default function AdminLayout({ children }) {
 
   const mainWrapperClass = isDark
     ? "min-h-screen flex bg-slate-950 text-slate-100"
-    : "min-h-screen flex bg-[#F5F8FB] text-[#0A1F33]";
+    : "min-h-screen flex bg-[#F1F5F9] text-[#0F172A]";
 
   const searchBoxClass = isDark
     ? "flex items-center bg-slate-800/50 border border-white/10 rounded-xl px-3 py-1 w-80 max-w-xs"
@@ -221,7 +221,7 @@ export default function AdminLayout({ children }) {
     : "text-[#4B5363] hover:text-[#E53935] hover:bg-[#FFE5E5]";
 
   return (
-    <div className={mainWrapperClass}>
+    <div className={mainWrapperClass} data-theme={theme}>
       {/* TOPBAR */}
       <header className={headerClass}>
         {/* ปุ่ม toggle pin (เต็ม <-> ย่อ) */}
@@ -253,24 +253,24 @@ export default function AdminLayout({ children }) {
 
         {/* Global Search Box */}
         <div ref={searchBoxRef} className="relative w-80 max-w-xs">
-          <div className="flex items-center bg-slate-800/50 border border-white/10 rounded-xl px-3 py-1">
-            <HiOutlineMagnifyingGlass className="h-4 w-4 text-slate-300" />
+          <div className={searchBoxClass}>
+            <HiOutlineMagnifyingGlass className="h-4 w-4 text-[var(--text-tertiary)]" />
             <input
               type="text"
               value={searchQuery}
               onChange={handleSearchChange}
-              onKeyDown={handleSearchKeyDown} // ⭐ เพิ่มตรงนี้
+              onKeyDown={handleSearchKeyDown}
               placeholder="Search courses (ID / name)..."
-              className="bg-transparent w-full px-2 py-1 text-sm text-slate-200 focus:outline-none"
+              className={searchInputClass}
             />
             {searchLoading && (
-              <span className="ml-1 text-[10px] text-slate-400">…</span>
+              <span className="ml-1 text-[10px] text-[var(--text-tertiary)]">…</span>
             )}
           </div>
 
           {/* Dropdown results */}
           {searchOpen && searchResults.length > 0 && (
-            <div className="absolute left-0 right-0 mt-1 rounded-xl bg-slate-900 border border-white/10 shadow-xl z-50 max-h-80 overflow-auto">
+            <div className={`absolute left-0 right-0 mt-1 rounded-xl border shadow-xl z-50 max-h-80 overflow-auto ${isDark ? "bg-slate-900 border-white/10" : "bg-white border-slate-200"}`}>
               {searchResults.map((item, idx) => {
                 const isActive = idx === activeIndex;
 
@@ -300,11 +300,13 @@ export default function AdminLayout({ children }) {
                     type="button"
                     onClick={() => handleResultClick(item)}
                     className={`w-full text-left px-3 py-2 text-sm flex flex-col gap-0.5 ${
-                      isActive ? "bg-slate-800" : "hover:bg-slate-800/70"
+                      isActive
+                        ? isDark ? "bg-slate-800" : "bg-slate-100"
+                        : isDark ? "hover:bg-slate-800/70" : "hover:bg-slate-50"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-slate-50">
+                      <span className={`font-medium ${isDark ? "text-slate-50" : "text-slate-900"}`}>
                         {item.name}
                       </span>
                       <span
@@ -314,7 +316,7 @@ export default function AdminLayout({ children }) {
                       </span>
                     </div>
                     {item.meta && (
-                      <div className="text-xs text-slate-400">{item.meta}</div>
+                      <div className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>{item.meta}</div>
                     )}
                   </button>
                 );

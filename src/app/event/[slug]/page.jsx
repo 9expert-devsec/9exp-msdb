@@ -5,8 +5,8 @@ import FormClient from "./_FormClient";
 
 // ทำ metadata ให้ไดนามิกตามชื่ออีเวนต์
 export async function generateMetadata({ params }) {
+  const { slug } = await params;
   await dbConnect();
-  const slug = params.slug;
   const doc = await Event.findOne({ slug, published: true }).lean();
 
   if (!doc) {
@@ -38,8 +38,8 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function EventPage({ params }) {
+  const { slug } = await params;
   await dbConnect();
-  const slug = params.slug;
 
   // ใช้ .lean() แล้ว “ลอก” ออกมาเป็น plain object + แปลง field ที่ไม่ serializable
   const doc = await Event.findOne({ slug, published: true }).lean();

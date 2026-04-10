@@ -60,13 +60,17 @@ export async function GET(req) {
 
     const items = await OnlineCourse.find(where)
       .select(
-        "o_course_cover_url o_course_id o_course_name o_course_teaser o_course_levels o_course_link o_course_price o_course_duration program skills sort_order createdAt updatedAt",
+        "o_course_cover_url o_course_id o_course_name o_course_teaser o_course_levels o_course_link o_course_price o_course_duration program skills sort_order related_courses createdAt updatedAt",
       )
       .populate(
         "program",
         "program_id program_name programiconurl programcolor sort_order",
       )
       .populate("skills", "skill_id skill_name skilliconurl skillcolor")
+      .populate({
+        path: "related_courses",
+        select: "o_course_id o_course_name o_course_teaser o_course_cover_url o_course_price o_number_lessons o_course_traininghours",
+      })
       .sort({ sort_order: 1, createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)

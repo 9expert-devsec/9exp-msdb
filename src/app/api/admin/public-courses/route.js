@@ -98,6 +98,9 @@ const PublicCourseSchema = z
 
     // previous course (ObjectId ใน DB, รับเป็น string id)
     previous_course: z.string().nullable().optional(),
+
+    // related courses (max 5, same type)
+    related_courses: z.array(z.string()).max(5).optional().default([]),
   })
   .passthrough();
 
@@ -149,6 +152,7 @@ export const POST = withRateLimit({ points: 10, duration: 60 })(async (req) => {
       )
       .populate("skills", "skill_id skill_name skilliconurl skillcolor")
       .populate("previous_course", "course_id course_name")
+      .populate("related_courses", "course_id course_name")
       .lean();
 
     return NextResponse.json({ ok: true, item }, { status: 201 });
@@ -203,6 +207,7 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(async (req) => 
       .populate("program", "program_id program_name programiconurl programcolor")
       .populate("skills", "skill_id skill_name skilliconurl skillcolor")
       .populate("previous_course", "course_id course_name")
+      .populate("related_courses", "course_id course_name")
       .lean();
 
     if (!item) {

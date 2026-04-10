@@ -65,9 +65,10 @@ function buildRows(event, responses) {
 
 /** GET /api/admin/events/:id/export?format=xlsx|csv  (default xlsx) */
 export async function GET(req, { params }) {
+  const { id } = await params;
   await dbConnect();
 
-  const event = await Event.findById(params.id).lean();
+  const event = await Event.findById(id).lean();
   if (!event) return new Response("Event not found", { status: 404 });
 
   const responses = await EventResponse.find({ eventId: event._id })

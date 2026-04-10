@@ -23,7 +23,7 @@ function cx(...a) {
 
 function Skeleton({ className = "" }) {
   return (
-    <div className={cx("animate-pulse rounded-lg bg-white/10", className)} />
+    <div className={cx("animate-pulse rounded-lg bg-[var(--bar-track)]", className)} />
   );
 }
 
@@ -44,13 +44,13 @@ function ProgramBadge({ program }) {
       <img
         src={program.programiconurl}
         alt={`${program.program_name} icon`}
-        className="h-6 w-6 rounded-lg object-contain bg-white/5 ring-1 ring-white/10"
+        className="h-6 w-6 rounded-lg object-contain bg-[var(--surface-glass)] ring-1 ring-[var(--border-primary)]"
       />
     );
   }
   return (
     <span
-      className="inline-block size-3 rounded-full ring-1 ring-white/10"
+      className="inline-block size-3 rounded-full ring-1 ring-[var(--border-primary)]"
       style={{ background: program?.programcolor || "#64748b" }}
     />
   );
@@ -62,35 +62,23 @@ function GlassCard({ children, className = "" }) {
   return (
     <div
       className={cx(
-        "relative rounded-3xl p-[1px]",
-        "bg-gradient-to-br from-white/14 via-white/6 to-white/10",
+        "rounded-3xl bg-[var(--surface-card)] border border-[var(--border-primary)] shadow-[var(--shadow-card)]",
         className,
       )}
     >
       {children}
-      {/* <div className=" bg-slate-950/35 ring-1 ring-white/10 backdrop-blur shadow-[0_18px_60px_rgba(0,0,0,0.35)]">
-        
-      </div> */}
     </div>
   );
 }
 
 function IconBox({ icon: Icon, tone = "emerald" }) {
-  const toneCls =
-    tone === "sky"
-      ? "bg-sky-500/15 text-sky-200 ring-sky-400/30 shadow-[0_0_22px_rgba(56,189,248,0.18)]"
-      : tone === "amber"
-        ? "bg-amber-500/15 text-amber-200 ring-amber-400/30 shadow-[0_0_22px_rgba(251,191,36,0.14)]"
-        : tone === "rose"
-          ? "bg-rose-500/15 text-rose-200 ring-rose-400/30 shadow-[0_0_22px_rgba(244,63,94,0.14)]"
-          : "bg-emerald-500/15 text-emerald-200 ring-emerald-400/30 shadow-[0_0_22px_rgba(16,185,129,0.16)]";
+  const varBg = `var(--icon-${tone}-bg)`;
+  const varText = `var(--icon-${tone}-text)`;
 
   return (
     <div
-      className={cx(
-        "h-10 w-10 rounded-2xl flex items-center justify-center ring-1",
-        toneCls,
-      )}
+      className="h-10 w-10 rounded-2xl flex items-center justify-center"
+      style={{ backgroundColor: varBg, color: varText }}
     >
       <Icon className="h-5 w-5" />
     </div>
@@ -101,33 +89,33 @@ function StatCard({ title, value, subtitle, tone, icon, href }) {
   const content = (
     <div
       className={cx(
-        "group rounded-2xl bg-white/5 ring-1 ring-white/10 p-4",
-        "hover:bg-white/[0.075] hover:ring-white/20 transition bg-gradient-to-br from-white/10 via-white/6 to-white/5",
-        "shadow-[0_12px_42px_rgba(0,0,0,0.25)]",
+        "group rounded-2xl bg-[var(--surface-card)] border border-[var(--border-primary)] p-4",
+        "hover:bg-[var(--surface-card-hover)] hover:border-[var(--border-hover)] transition",
+        "shadow-[var(--shadow-card)]",
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs text-slate-400">{title}</div>
-          <div className="text-3xl font-semibold mt-1 text-slate-50">
+          <div className="text-xs text-[var(--text-tertiary)]">{title}</div>
+          <div className="text-3xl font-semibold mt-1 text-[var(--text-primary)]">
             {value?.toLocaleString?.() ?? value}
           </div>
           {subtitle && (
-            <div className="text-xs text-slate-400 mt-1">{subtitle}</div>
+            <div className="text-xs text-[var(--text-tertiary)] mt-1">{subtitle}</div>
           )}
         </div>
 
         <IconBox tone={tone} icon={icon} />
       </div>
 
-      <div className="mt-3 h-px bg-white/10" />
+      <div className="mt-3 h-px bg-[var(--border-primary)]" />
 
-      <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
-        <span className={href ? "text-slate-300" : ""}>
+      <div className="mt-3 flex items-center justify-between text-[11px] text-[var(--text-tertiary)]">
+        <span className={href ? "text-[var(--text-secondary)]" : ""}>
           {href ? "View details" : "Summary"}
         </span>
         {href ? (
-          <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition text-slate-200" />
+          <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition text-[var(--text-secondary)]" />
         ) : null}
       </div>
     </div>
@@ -146,28 +134,28 @@ function StatCard({ title, value, subtitle, tone, icon, href }) {
 
 function ProgramStatsGroup({ publicCount, onlineCount, total }) {
   return (
-    <div className="inline-flex rounded-2xl bg-slate-900/70 ring-1 ring-white/10 overflow-hidden text-center text-xs">
+    <div className="inline-flex rounded-2xl bg-[var(--bar-bg)] border border-[var(--border-primary)] overflow-hidden text-center text-xs">
       <div className="px-3 py-2 min-w-[74px]">
-        <div className="text-[10px] text-emerald-300 uppercase tracking-wide">
+        <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--accent-emerald-text)" }}>
           Public
         </div>
-        <div className="text-lg font-semibold text-emerald-100 leading-tight">
+        <div className="text-lg font-semibold leading-tight" style={{ color: "var(--accent-emerald-text)" }}>
           {publicCount}
         </div>
       </div>
-      <div className="px-3 py-2 min-w-[74px] border-l border-slate-700/60">
-        <div className="text-[10px] text-sky-300 uppercase tracking-wide">
+      <div className="px-3 py-2 min-w-[74px] border-l border-[var(--border-primary)]">
+        <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--accent-sky-text)" }}>
           Online
         </div>
-        <div className="text-lg font-semibold text-sky-100 leading-tight">
+        <div className="text-lg font-semibold leading-tight" style={{ color: "var(--accent-sky-text)" }}>
           {onlineCount}
         </div>
       </div>
-      <div className="px-3 py-2 min-w-[74px] border-l border-slate-700/60">
-        <div className="text-[10px] text-slate-300 uppercase tracking-wide">
+      <div className="px-3 py-2 min-w-[74px] border-l border-[var(--border-primary)]">
+        <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wide">
           Total
         </div>
-        <div className="text-lg font-semibold text-slate-50 leading-tight">
+        <div className="text-lg font-semibold text-[var(--text-primary)] leading-tight">
           {total}
         </div>
       </div>
@@ -220,7 +208,7 @@ export default function DashboardPage() {
             {[...Array(4)].map((_, i) => (
               <div
                 key={i}
-                className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4"
+                className="rounded-2xl bg-[var(--surface-glass)] ring-1 ring-[var(--border-primary)] p-4"
               >
                 <Skeleton className="h-4 w-28" />
                 <Skeleton className="h-8 w-24 mt-3" />
@@ -233,7 +221,7 @@ export default function DashboardPage() {
             {[...Array(3)].map((_, i) => (
               <div
                 key={i}
-                className="rounded-3xl bg-white/5 ring-1 ring-white/10 p-4"
+                className="rounded-3xl bg-[var(--surface-glass)] ring-1 ring-[var(--border-primary)] p-4"
               >
                 <Skeleton className="h-5 w-52" />
                 <Skeleton className="h-4 w-80 mt-2" />
@@ -257,7 +245,7 @@ export default function DashboardPage() {
             {[...Array(8)].map((_, i) => (
               <div
                 key={i}
-                className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4"
+                className="rounded-2xl bg-[var(--surface-glass)] ring-1 ring-[var(--border-primary)] p-4"
               >
                 <Skeleton className="h-5 w-48" />
                 <Skeleton className="h-12 w-full mt-4" />
@@ -319,17 +307,17 @@ export default function DashboardPage() {
         <GlassCard>
           <div className="p-4 flex items-center justify-between gap-4">
             <div>
-              <h1 className="mt-2 text-xl font-semibold text-slate-50">
+              <h1 className="mt-2 text-xl font-semibold text-[var(--text-primary)]">
                 Dashboard Overview
               </h1>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-[var(--text-tertiary)] mt-1">
                 ภาพรวมคอร์สและวิทยากรทั้งหมดในระบบ 9Expert
               </p>
 
               {updatedAtLabel ? (
-                <div className="mt-2 text-[11px] text-slate-500">
+                <div className="mt-2 text-[11px] text-[var(--text-muted)]">
                   Updated:{" "}
-                  <span className="text-slate-300">{updatedAtLabel}</span>
+                  <span className="text-[var(--text-secondary)]">{updatedAtLabel}</span>
                 </div>
               ) : null}
             </div>
@@ -337,14 +325,14 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
               <Link
                 href="/admin/career-path"
-                className="hidden sm:inline-flex rounded-xl px-3 py-2 bg-white/5 hover:bg-white/10 text-sm ring-1 ring-white/10 hover:ring-white/20 transition"
+                className="hidden sm:inline-flex rounded-xl px-3 py-2 bg-[var(--surface-glass)] hover:bg-[var(--surface-glass-hover)] text-sm ring-1 ring-[var(--border-primary)] hover:ring-[var(--border-hover)] transition"
               >
                 Career Path
               </Link>
 
               <button
                 onClick={fetchStats}
-                className="inline-flex items-center gap-2 rounded-xl px-3 py-2 bg-white/10 hover:bg-white/20 text-sm ring-1 ring-white/10 hover:ring-white/20 transition"
+                className="inline-flex items-center gap-2 rounded-xl px-3 py-2 bg-[var(--surface-glass-hover)] hover:bg-[var(--surface-glass-hover)] text-sm ring-1 ring-[var(--border-primary)] hover:ring-[var(--border-hover)] transition"
               >
                 <RefreshCw className="h-4 w-4" />
                 Refresh
@@ -396,16 +384,16 @@ export default function DashboardPage() {
             <div className="p-4 h-full min-h-0 flex flex-col">
               <div className="flex items-start justify-between mb-2 gap-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-50">
+                  <h2 className="text-sm font-semibold text-[var(--text-primary)]">
                     Course by Program (Total)
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-[var(--text-tertiary)] mt-1">
                     เปรียบเทียบจำนวนคอร์สในแต่ละ Program (แสดงเป็นรหัสโปรแกรม)
                   </p>
                 </div>
-                <div className="text-xs text-slate-400 text-right whitespace-nowrap">
+                <div className="text-xs text-[var(--text-tertiary)] text-right whitespace-nowrap">
                   All Courses:{" "}
-                  <span className="text-slate-200 font-semibold">
+                  <span className="text-[var(--text-secondary)] font-semibold">
                     {totals.allCourses?.toLocaleString?.() ?? 0}
                   </span>
                 </div>
@@ -421,19 +409,19 @@ export default function DashboardPage() {
                       <div key={b.id} className="space-y-1">
                         <div className="flex items-center justify-between text-[11px]">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="inline-flex items-center justify-center rounded-lg bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-slate-50 ring-1 ring-white/10">
+                            <span className="inline-flex items-center justify-center rounded-lg bg-[var(--bar-bg)] px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[var(--text-primary)] ring-1 ring-[var(--border-primary)]">
                               {b.code || "—"}
                             </span>
-                            <span className="truncate text-slate-300">
+                            <span className="truncate text-[var(--text-secondary)]">
                               {b.name || "-"}
                             </span>
                           </div>
-                          <span className="text-slate-200 font-semibold ml-2">
+                          <span className="text-[var(--text-secondary)] font-semibold ml-2">
                             {b.total}
                           </span>
                         </div>
 
-                        <div className="h-2 w-full rounded-full bg-slate-900/70 overflow-hidden ring-1 ring-white/5">
+                        <div className="h-2 w-full rounded-full bg-[var(--bar-bg)] overflow-hidden ring-1 ring-[var(--border-primary)]">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-cyan-300"
                             style={{ width: `${pct || 0}%` }}
@@ -444,7 +432,7 @@ export default function DashboardPage() {
                   })}
 
                   {!barData.length && (
-                    <div className="text-xs text-slate-400 col-span-full">
+                    <div className="text-xs text-[var(--text-tertiary)] col-span-full">
                       ยังไม่มีข้อมูล Program
                     </div>
                   )}
@@ -454,17 +442,17 @@ export default function DashboardPage() {
               {/* ✅ Pagination: Previous / Next แบบไล่หน้า */}
               {totalPages > 1 && (
                 <div className="mt-auto pt-4 ">
-                  <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                  <div className="flex items-center justify-between pt-4 border-t border-[var(--border-primary)]">
                     <button
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="inline-flex items-center gap-1 text-xs text-slate-400 disabled:text-slate-600 hover:text-slate-200 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1 text-xs text-[var(--text-tertiary)] disabled:text-[var(--text-muted)] hover:text-[var(--text-secondary)] disabled:cursor-not-allowed"
                     >
                       <ChevronLeft className="h-4 w-4" />
                       Previous
                     </button>
 
-                    <div className="text-xs text-slate-300 font-semibold">
+                    <div className="text-xs text-[var(--text-secondary)] font-semibold">
                       หน้า {currentPage} จาก {totalPages}
                     </div>
 
@@ -473,7 +461,7 @@ export default function DashboardPage() {
                         setCurrentPage((p) => Math.min(totalPages, p + 1))
                       }
                       disabled={currentPage === totalPages}
-                      className="inline-flex items-center gap-1 text-xs text-slate-400 disabled:text-slate-600 hover:text-slate-200 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1 text-xs text-[var(--text-tertiary)] disabled:text-[var(--text-muted)] hover:text-[var(--text-secondary)] disabled:cursor-not-allowed"
                     >
                       Next
                       <ChevronRight className="h-4 w-4" />
@@ -489,16 +477,16 @@ export default function DashboardPage() {
             <div className="p-4 h-full min-h-0 flex flex-col">
               <div className="flex items-start justify-between mb-3 gap-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-50 inline-flex items-center gap-2">
-                    <Users className="h-4 w-4 text-emerald-300" />
+                  <h2 className="text-sm font-semibold text-[var(--text-primary)] inline-flex items-center gap-2">
+                    <Users className="h-4 w-4 text-[var(--accent-emerald)]" />
                     Instructors
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-[var(--text-tertiary)] mt-1">
                     สรุปจำนวนวิทยากร และ Program ที่สอนได้
                   </p>
                 </div>
                 {updatedAtLabel ? (
-                  <div className="text-[11px] text-slate-500 text-right whitespace-nowrap">
+                  <div className="text-[11px] text-[var(--text-muted)] text-right whitespace-nowrap">
                     Updated {updatedAtLabel}
                   </div>
                 ) : null}
@@ -506,28 +494,28 @@ export default function DashboardPage() {
 
               <div className="flex items-center gap-4">
                 <div className="flex-1 flex flex-col items-center justify-center">
-                  <div className="h-20 w-20 rounded-full bg-slate-900/70 border border-emerald-400/30 shadow-[0_0_28px_rgba(16,185,129,0.35)] flex items-center justify-center">
-                    <span className="text-3xl font-semibold text-emerald-300">
+                  <div className="h-20 w-20 rounded-full bg-[var(--surface-card)] border-2 border-[var(--border-primary)] shadow-[var(--shadow-glow-emerald)] flex items-center justify-center">
+                    <span className="text-3xl font-semibold" style={{ color: "var(--accent-emerald-text)" }}>
                       {totalInstructors}
                     </span>
                   </div>
-                  <div className="mt-2 text-[11px] text-slate-400">
+                  <div className="mt-2 text-[11px] text-[var(--text-tertiary)]">
                     วิทยากรทั้งหมดในระบบ
                   </div>
                 </div>
 
                 <div className="flex-1 space-y-2 text-[11px]">
-                  <div className="rounded-xl bg-slate-900/60 px-3 py-2 flex items-center justify-between ring-1 ring-white/10">
-                    <span className="text-slate-400">เฉลี่ย Program / คน</span>
-                    <span className="font-semibold text-emerald-300">
+                  <div className="rounded-xl bg-[var(--bar-bg)] px-3 py-2 flex items-center justify-between border border-[var(--border-primary)]">
+                    <span className="text-[var(--text-tertiary)]">เฉลี่ย Program / คน</span>
+                    <span className="font-semibold text-[var(--accent-emerald)]">
                       {avgProgramsPerInstructor?.toFixed
                         ? avgProgramsPerInstructor.toFixed(1)
                         : avgProgramsPerInstructor}
                     </span>
                   </div>
-                  <div className="rounded-xl bg-slate-900/60 px-3 py-2 flex items-center justify-between ring-1 ring-white/10">
-                    <span className="text-slate-400">สอนได้มากที่สุด</span>
-                    <span className="font-semibold text-sky-300">
+                  <div className="rounded-xl bg-[var(--bar-bg)] px-3 py-2 flex items-center justify-between border border-[var(--border-primary)]">
+                    <span className="text-[var(--text-tertiary)]">สอนได้มากที่สุด</span>
+                    <span className="font-semibold text-[var(--accent-sky)]">
                       {maxProgramsPerInstructor} Program
                     </span>
                   </div>
@@ -536,7 +524,7 @@ export default function DashboardPage() {
 
               <div className="mt-4 flex-1 min-h-0 flex flex-col">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-[var(--text-tertiary)]">
                     Top Instructors
                   </span>
                 </div>
@@ -545,26 +533,34 @@ export default function DashboardPage() {
                     topInstructors.map((ins, idx) => (
                       <div
                         key={ins._id || idx}
-                        className="flex items-center justify-between rounded-xl bg-slate-900/55 ring-1 ring-white/10 px-2.5 py-1.5"
+                        className="flex items-center justify-between rounded-xl bg-[var(--bar-bg)] border border-[var(--border-primary)] px-2.5 py-1.5"
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[10px] text-slate-500 w-6">
+                          <span className="text-[10px] text-[var(--text-muted)] w-6">
                             #{idx + 1}
                           </span>
-                          <div className="h-7 w-7 rounded-full bg-gradient-to-br from-emerald-500/70 to-sky-500/70 flex items-center justify-center text-[11px] text-white font-semibold">
-                            {(ins.name || "I").charAt(0).toUpperCase()}
-                          </div>
-                          <span className="text-[11px] text-slate-100 truncate">
+                          {ins.photo_url ? (
+                            <img
+                              src={ins.photo_url}
+                              alt={ins.name}
+                              className="h-7 w-7 rounded-full object-cover ring-1 ring-[var(--border-primary)]"
+                            />
+                          ) : (
+                            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-emerald-500/70 to-sky-500/70 flex items-center justify-center text-[11px] text-white font-semibold">
+                              {(ins.name || "I").charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="text-[11px] text-[var(--text-primary)] truncate">
                             {ins.name}
                           </span>
                         </div>
-                        <span className="text-[11px] text-emerald-300">
+                        <span className="text-[11px] text-[var(--accent-emerald)]">
                           {ins.programCount} Program
                         </span>
                       </div>
                     ))
                   ) : (
-                    <div className="text-[11px] text-slate-500">
+                    <div className="text-[11px] text-[var(--text-muted)]">
                       ยังไม่มีข้อมูล Instructor
                     </div>
                   )}
@@ -576,11 +572,11 @@ export default function DashboardPage() {
           {/* 3) Top Programs */}
           <GlassCard>
             <div className="p-4 space-y-3">
-              <h2 className="text-sm font-semibold text-slate-50 inline-flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-amber-300" />
+              <h2 className="text-sm font-semibold text-[var(--text-primary)] inline-flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-[var(--accent-amber)]" />
                 Top Programs
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[var(--text-tertiary)]">
                 Program ที่มีจำนวนคอร์สรวมมากที่สุด
               </p>
 
@@ -588,30 +584,30 @@ export default function DashboardPage() {
                 {topPrograms.map((p, idx) => (
                   <div
                     key={p._id}
-                    className="flex items-center justify-between rounded-xl bg-slate-900/45 ring-1 ring-white/10 px-3 py-2 hover:bg-slate-900/60 transition"
+                    className="flex items-center justify-between rounded-xl bg-[var(--bar-bg)] border border-[var(--border-primary)] px-3 py-2 hover:bg-[var(--surface-card-hover)] transition"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs text-slate-400 w-6">
+                      <span className="text-xs text-[var(--text-tertiary)] w-6">
                         #{idx + 1}
                       </span>
                       <ProgramBadge program={p} />
                       <div className="min-w-0">
-                        <div className="text-sm truncate text-slate-100">
+                        <div className="text-sm truncate text-[var(--text-primary)]">
                           {p.program_name || "Untitled"}
                         </div>
-                        <div className="text-[11px] text-slate-400">
+                        <div className="text-[11px] text-[var(--text-tertiary)]">
                           Public {p.publicCount} • Online {p.onlineCount}
                         </div>
                       </div>
                     </div>
-                    <div className="text-sm font-semibold text-slate-50">
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">
                       {p.total ?? 0}
                     </div>
                   </div>
                 ))}
 
                 {!topPrograms.length && (
-                  <div className="text-xs text-slate-400">ยังไม่มี Program</div>
+                  <div className="text-xs text-[var(--text-tertiary)]">ยังไม่มี Program</div>
                 )}
               </div>
             </div>
@@ -621,10 +617,10 @@ export default function DashboardPage() {
         {/* BY PROGRAM: DETAIL CARDS */}
         <div className="flex items-end justify-between mt-2 gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-50">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
               Program Breakdown
             </h2>
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-[var(--text-tertiary)]">
               แสดงรายละเอียด Public / Online / Total แยกตาม Program
             </div>
           </div>
@@ -639,9 +635,9 @@ export default function DashboardPage() {
               <div
                 key={p._id}
                 className={cx(
-                  "rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 flex flex-col gap-3",
-                  "hover:bg-white/[0.075] hover:ring-white/20 transition bg-gradient-to-br from-white/10 via-white/6 to-white/5",
-                  "shadow-[0_12px_40px_rgba(0,0,0,0.18)]",
+                  "rounded-2xl bg-[var(--surface-card)] border border-[var(--border-primary)] p-4 flex flex-col gap-3",
+                  "hover:bg-[var(--surface-card-hover)] hover:border-[var(--border-hover)] transition",
+                  "shadow-[var(--shadow-card)]",
                 )}
               >
                 {/* header */}
@@ -649,17 +645,17 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2 min-w-0">
                     <ProgramBadge program={p} />
                     <div className="min-w-0">
-                      <div className="font-medium truncate text-slate-100">
+                      <div className="font-medium truncate text-[var(--text-primary)]">
                         {p.program_name}
                       </div>
-                      <div className="text-[11px] text-slate-400">
+                      <div className="text-[11px] text-[var(--text-tertiary)]">
                         {p.program_id}
                       </div>
                     </div>
                   </div>
-                  <div className="text-xs text-slate-400 whitespace-nowrap">
+                  <div className="text-xs text-[var(--text-tertiary)] whitespace-nowrap">
                     Total:{" "}
-                    <span className="font-semibold text-slate-100">
+                    <span className="font-semibold text-[var(--text-primary)]">
                       {p.total}
                     </span>
                   </div>
@@ -674,13 +670,13 @@ export default function DashboardPage() {
                   />
 
                   <div className="flex-1">
-                    <div className="h-1.5 w-full rounded-full bg-slate-900/70 overflow-hidden ring-1 ring-white/5">
+                    <div className="h-1.5 w-full rounded-full bg-[var(--bar-bg)] overflow-hidden ring-1 ring-[var(--border-primary)]">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-cyan-300"
                         style={{ width: `${pct || 0}%` }}
                       />
                     </div>
-                    <div className="mt-1 text-[11px] text-right text-slate-500">
+                    <div className="mt-1 text-[11px] text-right text-[var(--text-muted)]">
                       สัดส่วน {pct.toFixed ? pct.toFixed(1) : pct}% ของ top
                     </div>
                   </div>
@@ -690,7 +686,7 @@ export default function DashboardPage() {
           })}
 
           {!byProgram.length && (
-            <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-6 text-center text-slate-400">
+            <div className="rounded-2xl bg-[var(--surface-glass)] ring-1 ring-[var(--border-primary)] p-6 text-center text-[var(--text-tertiary)]">
               ยังไม่มี Program
             </div>
           )}

@@ -138,9 +138,9 @@ export default function AdminSchedulesPage() {
         </Link>
       </div>
 
-      {loading && <div className="text-slate-300/80">Loading…</div>}
+      {loading && <div className="text-[var(--text-secondary)]/80">Loading…</div>}
       {!loading && grouped.length === 0 && (
-        <div className="text-slate-300/80">
+        <div className="text-[var(--text-secondary)]/80">
           ไม่มีรอบอบรมในช่วง 12 เดือนถัดไป
         </div>
       )}

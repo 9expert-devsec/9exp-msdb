@@ -26,7 +26,7 @@ export const GET = withRateLimit({ points: 30, duration: 60 })(
       await requireRole(req, ["admin", "editor"]);
       await dbConnect();
 
-      const id = params?.id;
+      const { id } = await params;
       if (!id) {
         return NextResponse.json(
           { ok: false, error: "id is required" },

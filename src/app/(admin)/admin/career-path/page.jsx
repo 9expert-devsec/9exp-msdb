@@ -26,7 +26,7 @@ function StatusPill({ status }) {
 }
 
 function Skeleton({ className = "" }) {
-  return <div className={`animate-pulse rounded-lg bg-white/10 ${className}`} />;
+  return <div className={`animate-pulse rounded-lg bg-[var(--surface-glass-hover)] ${className}`} />;
 }
 
 function ListSkeleton() {
@@ -42,7 +42,7 @@ function ListSkeleton() {
       </div>
 
       {/* filter skeleton */}
-      <div className="rounded-2xl border border-white/10 bg-slate-950/20 p-4 flex flex-wrap gap-3 items-center">
+      <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-card)] p-4 flex flex-wrap gap-3 items-center">
         <Skeleton className="h-10 w-80 rounded-xl" />
         <Skeleton className="h-10 w-32 rounded-xl" />
         <Skeleton className="h-10 w-28 rounded-xl" />
@@ -53,7 +53,7 @@ function ListSkeleton() {
         {Array.from({ length: 9 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-2xl border border-white/10 bg-slate-950/20 overflow-hidden"
+            className="rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-card)] overflow-hidden"
           >
             <Skeleton className="aspect-[16/9] w-full rounded-none" />
             <div className="p-4 space-y-3">
@@ -146,16 +146,16 @@ export default function CareerPathAdminListPage() {
       </div>
 
       {/* filters */}
-      <div className="rounded-2xl border border-white/10 bg-slate-950/20 p-4 flex flex-wrap gap-3 items-center">
+      <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-card)] p-4 flex flex-wrap gap-3 items-center">
         <input
-          className="w-80 max-w-full rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 text-sm text-white/85 outline-none"
+          className="w-80 max-w-full rounded-xl border border-[var(--border-primary)] bg-slate-900/40 px-3 py-2 text-sm text-white/85 outline-none"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="ค้นหา title / slug ..."
         />
 
         <select
-          className="rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 text-sm text-white/85 outline-none"
+          className="rounded-xl border border-[var(--border-primary)] bg-slate-900/40 px-3 py-2 text-sm text-white/85 outline-none"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         >
@@ -167,7 +167,7 @@ export default function CareerPathAdminListPage() {
         <button
           type="button"
           onClick={() => load()}
-          className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 hover:bg-white/10"
+          className="rounded-xl border border-[var(--border-primary)] bg-white/5 px-4 py-2 text-sm text-white/80 hover:bg-[var(--surface-glass-hover)]"
         >
           Refresh
         </button>
@@ -175,7 +175,7 @@ export default function CareerPathAdminListPage() {
 
       {/* grid */}
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-slate-950/20 p-6 text-white/60">
+        <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-card)] p-6 text-white/60">
           ไม่พบรายการ
         </div>
       ) : (
@@ -196,7 +196,7 @@ export default function CareerPathAdminListPage() {
               <Link
                 key={it._id}
                 href={`/admin/career-path/${it._id}/edit`}
-                className="group rounded-2xl border border-white/10 bg-slate-950/20 overflow-hidden hover:bg-white/5 transition"
+                className="group rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-card)] overflow-hidden hover:bg-white/5 transition"
               >
                 <div className="aspect-[16/9] bg-slate-900/40">
                   {cover ? (

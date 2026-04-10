@@ -60,6 +60,14 @@ const PublicCourseSchema = new Schema(
       ref: "PublicCourse",
       default: null,
     },
+
+    // Related courses (same type only — Public → Public)
+    related_courses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "PublicCourse",
+      },
+    ],
   },
   { timestamps: true }
 );

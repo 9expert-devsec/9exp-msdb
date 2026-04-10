@@ -4,8 +4,8 @@ import Event from "@/models/Event";
 export const dynamic = "force-dynamic";
 
 export async function GET(_req, { params }) {
+  const { slug } = await params;
   await dbConnect();
-  const slug = params?.slug;
   if (!slug) return new Response("Bad request", { status: 400 });
 
   const item = await Event.findOne({ slug, published: true }).lean();

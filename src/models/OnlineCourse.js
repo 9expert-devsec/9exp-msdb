@@ -49,6 +49,14 @@ const OnlineCourseSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Related courses (same type only — Online → Online)
+    related_courses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "OnlineCourse",
+      },
+    ],
+
     program: { type: mongoose.Schema.Types.ObjectId, ref: "Program" },
     skills: [{ type: mongoose.Schema.Types.ObjectId, ref: "Skill" }],
   },

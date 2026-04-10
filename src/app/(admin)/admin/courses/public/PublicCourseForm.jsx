@@ -46,6 +46,7 @@ const DEFAULT = {
   exam_links: [],
 
   previous_course: "",
+  related_courses: [],
 };
 
 /* ---------- tiny helpers ---------- */
@@ -142,6 +143,104 @@ function TopicsEditor({ value = [], onChange }) {
   );
 }
 
+/* ---------- Related Course Picker ---------- */
+function RelatedCoursePicker({ selected = [], onChange, allCourses = [], max = 5, nameField = "course_name", idField = "course_id" }) {
+  const [search, setSearch] = useState("");
+
+  const filtered = allCourses.filter((c) => {
+    const q = search.toLowerCase();
+    return (
+      !q ||
+      (c[nameField] || "").toLowerCase().includes(q) ||
+      (c[idField] || "").toLowerCase().includes(q)
+    );
+  });
+
+  const toggle = (id) => {
+    if (selected.includes(id)) {
+      onChange(selected.filter((x) => x !== id));
+    } else if (selected.length < max) {
+      onChange([...selected, id]);
+    }
+  };
+
+  const atLimit = selected.length >= max;
+
+  return (
+    <div className="space-y-3">
+      {/* Selected chips */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selected.map((id) => {
+            const c = allCourses.find((x) => x._id === id);
+            return (
+              <span
+                key={id}
+                className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/30"
+              >
+                {c?.[nameField] || id}
+                <button
+                  type="button"
+                  onClick={() => toggle(id)}
+                  className="ml-0.5 hover:text-white"
+                >
+                  ✕
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-[var(--text-tertiary)]">
+          {selected.length} / {max} selected
+        </span>
+        {atLimit && (
+          <span className="text-xs text-amber-400">Maximum {max} reached</span>
+        )}
+      </div>
+
+      {/* Search */}
+      <input
+        className="input"
+        placeholder={`Search by name or ID...`}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      {/* Scrollable checklist */}
+      <div className="max-h-60 overflow-y-auto rounded-xl bg-[var(--surface-glass)] border border-[var(--border-primary)]">
+        {filtered.map((c) => {
+          const checked = selected.includes(c._id);
+          const disabled = !checked && atLimit;
+          return (
+            <label
+              key={c._id}
+              className={`flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-[var(--surface-glass-hover)] ${
+                disabled ? "opacity-40 cursor-not-allowed" : ""
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={disabled}
+                onChange={() => toggle(c._id)}
+                className="accent-emerald-500"
+              />
+              <span className="truncate text-[var(--text-primary)]">{c[nameField]}</span>
+              <span className="text-[var(--text-muted)] ml-auto shrink-0">({c[idField]})</span>
+            </label>
+          );
+        })}
+        {!filtered.length && (
+          <div className="px-3 py-4 text-xs text-[var(--text-muted)]">No courses found</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- main ---------- */
 export default function PublicCourseForm({ item = {}, onSaved }) {
   const [programs, setPrograms] = useState([]);
@@ -212,6 +311,9 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
       previous_course:
         item?.previous_course?._id ||
         (typeof item?.previous_course === "string" ? item.previous_course : ""),
+      related_courses: Array.isArray(item?.related_courses)
+        ? item.related_courses.map((c) => c._id || c)
+        : [],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item]);
@@ -328,6 +430,7 @@ const payload = {
 
   // ❗ ถ้า dropdown = "" ให้ส่ง null ไปชัด ๆ
   previous_course: form.previous_course || null,
+  related_courses: form.related_courses || [],
 };
 
 
@@ -697,6 +800,21 @@ const payload = {
             </div>
           </div>
         </div>
+      </Section>
+
+      {/* Related Courses */}
+      <Section
+        title="Related Courses"
+        desc="เลือกคอร์สที่เกี่ยวข้องได้สูงสุด 5 รายการ (Public Course เท่านั้น)"
+      >
+        <RelatedCoursePicker
+          selected={form.related_courses}
+          onChange={(ids) => set("related_courses", ids)}
+          allCourses={allCourses}
+          max={5}
+          nameField="course_name"
+          idField="course_id"
+        />
       </Section>
 
       {/* Bullets (plain) */}

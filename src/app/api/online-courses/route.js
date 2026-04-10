@@ -84,6 +84,10 @@ export const GET = withCors(
           path: "previous_course",
           select: "o_course_id o_course_name",
         })
+        .populate({
+          path: "related_courses",
+          select: "o_course_id o_course_name o_course_cover_url o_course_price",
+        })
         .sort({ sort_order: 1, createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)

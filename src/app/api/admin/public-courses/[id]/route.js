@@ -16,11 +16,12 @@ export const GET = withRateLimit({ points: 60, duration: 60 })(
       await requireRole(req, ["admin", "editor"]);
       await dbConnect();
 
-      const id = params.id;
+      const { id } = await params;
       const item = await PublicCourse.findById(id)
         .populate("program")
         .populate("skills")
         .populate("previous_course")
+        .populate("related_courses", "course_id course_name")
         .lean();
 
       if (!item) {
@@ -47,7 +48,7 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(
       await requireRole(req, ["admin", "editor"]);
       await dbConnect();
 
-      const id = params.id;
+      const { id } = await params;
       const raw = await req.text();
       const json = raw ? JSON.parse(raw) : {};
 
@@ -85,6 +86,7 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(
         .populate("program")
         .populate("skills")
         .populate("previous_course")
+        .populate("related_courses", "course_id course_name")
         .lean();
 
       if (!updated) {
@@ -112,7 +114,7 @@ export const DELETE = withRateLimit({ points: 10, duration: 60 })(
       await requireRole(req, ["admin"]);
       await dbConnect();
 
-      const id = params.id;
+      const { id } = await params;
       const removed = await PublicCourse.findByIdAndDelete(id).lean();
       if (!removed) {
         return NextResponse.json(

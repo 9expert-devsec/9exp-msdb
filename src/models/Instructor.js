@@ -22,6 +22,14 @@ const InstructorSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Instructor profile photo
+    photo_url:       { type: String, default: "" },
+    photo_public_id: { type: String, default: "" },
+
+    // Instructor signature image
+    signature_url:       { type: String, default: "" },
+    signature_public_id: { type: String, default: "" },
+
     programs: [
       {
         type: mongoose.Schema.Types.ObjectId,

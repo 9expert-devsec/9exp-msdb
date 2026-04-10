@@ -20,9 +20,8 @@ function addStatus(item) {
 
 export async function GET(req, { params }) {
   try {
+    const { slug } = await params;
     await dbConnect();
-
-    const slug = params.slug;
 
     const item = await Promotion.findOne({
       slug,

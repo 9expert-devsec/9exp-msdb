@@ -5,9 +5,8 @@ import FAQ from "@/models/Faq";
 export const dynamic = "force-dynamic";
 
 export async function GET(req, { params }) {
+  const { id } = await params;
   await dbConnect();
-
-  const id = params.id;
   const item = await FAQ.findOne({ _id: id, is_published: true }).lean();
 
   if (!item) {

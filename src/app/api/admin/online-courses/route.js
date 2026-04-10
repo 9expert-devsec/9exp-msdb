@@ -96,6 +96,9 @@ const OnlineCourseSchema = z
 
     // เก็บ ObjectId ของคอร์สก่อนหน้า (รับเป็น string id จาก FE)
     previous_course: z.string().optional(),
+
+    // related courses (max 5, same type)
+    related_courses: z.array(z.string()).max(5).optional().default([]),
   })
   // เผื่ออนาคตมี field อื่น ๆ เพิ่ม จะไม่โดนตัดทิ้ง
   .passthrough();
@@ -152,6 +155,7 @@ export const POST = withRateLimit({ points: 10, duration: 60 })(async (req) => {
       )
       .populate("skills", "skill_id skill_name skilliconurl skillcolor")
       .populate("previous_course", "o_course_id o_course_name")
+      .populate("related_courses", "o_course_id o_course_name")
       .lean();
 
     return NextResponse.json({ ok: true, item }, { status: 201 });
@@ -236,6 +240,7 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(async (req) => 
       )
       .populate("skills", "skill_id skill_name skilliconurl skillcolor")
       .populate("previous_course", "o_course_id o_course_name")
+      .populate("related_courses", "o_course_id o_course_name")
       .lean();
 
     if (!item)

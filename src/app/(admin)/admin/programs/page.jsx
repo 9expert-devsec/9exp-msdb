@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from "react";
 
 /* -------------------- Small UI helpers -------------------- */
 const FieldLabel = ({ children, hint }) => (
-  <label className="block text-sm font-medium text-slate-200">
+  <label className="block text-sm font-medium text-[var(--text-secondary)]">
     {children}
-    {hint && <span className="ml-2 text-xs text-slate-400">{hint}</span>}
+    {hint && <span className="ml-2 text-xs text-[var(--text-tertiary)]">{hint}</span>}
   </label>
 );
 
@@ -18,13 +18,13 @@ function ProgramBadge({ program }) {
         src={program.programiconurl}
         alt={`${program.program_name} icon`}
         loading="lazy"
-        className="h-5 w-5 rounded-[6px] object-contain bg-white/5 ring-1 ring-white/10"
+        className="h-5 w-5 rounded-[6px] object-contain bg-[var(--surface-glass)] ring-1 ring-[var(--border-primary)]"
       />
     );
   }
   return (
     <span
-      className="inline-block size-3 rounded-full ring-1 ring-white/10"
+      className="inline-block size-3 rounded-full ring-1 ring-[var(--border-primary)]"
       style={{ background: program?.programcolor || "#64748b" }}
     />
   );
@@ -34,7 +34,7 @@ function ProgramBadge({ program }) {
 function SkeletonBlock({ className = "" }) {
   return (
     <div
-      className={`animate-pulse rounded-xl bg-white/10 ring-1 ring-white/10 ${className}`}
+      className={`animate-pulse rounded-xl bg-[var(--surface-glass-hover)] ring-1 ring-[var(--border-primary)] ${className}`}
     />
   );
 }
@@ -45,7 +45,7 @@ function ProgramsSkeleton() {
       {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}
-          className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 flex items-start justify-between"
+          className="rounded-2xl bg-[var(--surface-glass)] ring-1 ring-[var(--border-primary)] p-4 flex items-start justify-between"
         >
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -151,7 +151,7 @@ function ProgramForm({ item = {}, onSaved, onCancel }) {
               value={form.programcolor}
               onChange={(e) => set("programcolor", e.target.value)}
             />
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-[var(--text-tertiary)]">
               ใช้เป็นสีประจำโปรแกรม (โชว์เป็นจุดสีในลิสต์)
             </span>
           </div>
@@ -261,7 +261,7 @@ function ProgramForm({ item = {}, onSaved, onCancel }) {
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+      <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border-primary)]">
         <button onClick={onCancel} type="button" className="btn-subtle">
           Cancel
         </button>
@@ -415,7 +415,7 @@ export default function ProgramsPage() {
         <h1 className="text-xl font-semibold">Programs</h1>
         <button
           onClick={() => setEdit({})}
-          className="rounded-xl px-4 py-2 bg-white/10 hover:bg-white/20"
+          className="rounded-xl px-4 py-2 bg-[var(--surface-glass-hover)] hover:bg-[var(--surface-glass-hover)]"
         >
           + New Program
         </button>
@@ -429,7 +429,7 @@ export default function ProgramsPage() {
           {items.map((p) => (
             <div
               key={p._id}
-              className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 flex items-start justify-between"
+              className="rounded-2xl bg-[var(--surface-glass)] ring-1 ring-[var(--border-primary)] p-4 flex items-start justify-between"
             >
               <div>
                 <div className="flex items-center gap-2">
@@ -449,7 +449,7 @@ export default function ProgramsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setEdit(p)}
-                  className="rounded-lg px-3 py-1 bg-white/10"
+                  className="rounded-lg px-3 py-1 bg-[var(--surface-glass-hover)]"
                 >
                   Edit
                 </button>
@@ -476,14 +476,14 @@ export default function ProgramsPage() {
       {edit !== null && (
         <div className="fixed inset-0 z-50 bg-black/60 p-0 sm:p-4">
           <div className="mx-auto w-full sm:max-w-2xl">
-            <div className="rounded-2xl bg-slate-900 ring-1 ring-white/10 max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-3 border-b border-white/10 bg-slate-900/95 backdrop-blur">
+            <div className="rounded-2xl bg-[var(--surface-card)] ring-1 ring-[var(--border-primary)] max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border-primary)] bg-[var(--surface-primary)] backdrop-blur">
                 <h2 className="text-lg font-semibold">
                   {edit?._id ? "Edit Program" : "New Program"}
                 </h2>
                 <button
                   onClick={() => setEdit(null)}
-                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20"
+                  className="px-3 py-1 rounded-lg bg-[var(--surface-glass-hover)] hover:bg-[var(--surface-glass-hover)]"
                 >
                   Close
                 </button>

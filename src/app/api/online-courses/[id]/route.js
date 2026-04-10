@@ -17,8 +17,9 @@ const cleanArray = (text) =>
 /* ---------- GET one ---------- */
 export const GET = withCors(async (req, { params }) => {
   try {
+    const { id } = await params;
     await dbConnect();
-    const item = await OnlineCourse.findById(params.id)
+    const item = await OnlineCourse.findById(id)
       .populate("program")
       .populate("skills")
       .populate("previous_course")
@@ -39,6 +40,7 @@ export const GET = withCors(async (req, { params }) => {
 /* ---------- PATCH ---------- */
 export const PATCH = withCors(async (req, { params }) => {
   try {
+    const { id } = await params;
     await dbConnect();
     const body = await req.json();
 
@@ -60,7 +62,7 @@ export const PATCH = withCors(async (req, { params }) => {
         : [],
     };
 
-    const updated = await OnlineCourse.findByIdAndUpdate(params.id, payload, {
+    const updated = await OnlineCourse.findByIdAndUpdate(id, payload, {
       new: true,
     });
 
@@ -73,8 +75,9 @@ export const PATCH = withCors(async (req, { params }) => {
 /* ---------- DELETE ---------- */
 export const DELETE = withCors(async (req, { params }) => {
   try {
+    const { id } = await params;
     await dbConnect();
-    await OnlineCourse.findByIdAndDelete(params.id);
+    await OnlineCourse.findByIdAndDelete(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });

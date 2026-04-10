@@ -11,13 +11,13 @@ function ProgramBadge({ program }) {
       <img
         src={program.programiconurl}
         alt={`${program.program_name} icon`}
-        className="h-4 w-4 rounded-[4px] object-contain bg-white/5 ring-1 ring-white/10"
+        className="h-4 w-4 rounded-[4px] object-contain bg-[var(--surface-glass)] ring-1 ring-[var(--border-primary)]"
       />
     );
   }
   return (
     <span
-      className="inline-block size-3 rounded-full ring-1 ring-white/10"
+      className="inline-block size-3 rounded-full ring-1 ring-[var(--border-primary)]"
       style={{ background: program?.programcolor || "#64748b" }}
     />
   );
@@ -37,10 +37,10 @@ function CopyMenu({ item }) {
   return (
     <div className="relative">
       <details className="group">
-        <summary className="cursor-pointer rounded-lg px-3 py-1 bg-white/10 hover:bg-white/20">
+        <summary className="cursor-pointer rounded-lg px-3 py-1 bg-[var(--surface-glass-hover)] hover:bg-[var(--surface-glass-hover)]">
           Copy
         </summary>
-        <div className="absolute right-0 mt-1 w-56 rounded-xl bg-slate-800 ring-1 ring-white/10 p-1 z-10">
+        <div className="absolute right-0 mt-1 w-56 rounded-xl bg-[var(--surface-card-hover)] ring-1 ring-[var(--border-primary)] p-1 z-10">
           <button
             className="mitem"
             onClick={() => doCopy(item.o_course_cover_url)}
@@ -65,7 +65,7 @@ function CopyMenu({ item }) {
           >
             Case Study Paths
           </button>
-          <div className="my-1 h-px bg-white/10" />
+          <div className="my-1 h-px bg-[var(--surface-glass-hover)]" />
           <button
             className="mitem"
             onClick={() => doCopy(join(item.website_urls))}
@@ -100,7 +100,7 @@ function CopyMenu({ item }) {
 function SkeletonBlock({ className = "" }) {
   return (
     <div
-      className={`animate-pulse rounded-xl bg-white/10 ring-1 ring-white/10 ${className}`}
+      className={`animate-pulse rounded-xl bg-[var(--surface-glass-hover)] ring-1 ring-[var(--border-primary)] ${className}`}
     />
   );
 }
@@ -111,9 +111,9 @@ function ListSkeleton() {
       {Array.from({ length: 3 }).map((_, gi) => (
         <section
           key={gi}
-          className="rounded-2xl bg-white/5 ring-1 ring-white/10"
+          className="rounded-2xl bg-[var(--surface-glass)] ring-1 ring-[var(--border-primary)]"
         >
-          <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <div className="flex items-center justify-between p-4 border-b border-[var(--border-primary)]">
             <div className="flex items-center gap-3">
               <SkeletonBlock className="h-4 w-4 rounded" />
               <SkeletonBlock className="h-4 w-40" />
@@ -317,7 +317,7 @@ export default function OnlineCoursesAdminPage() {
         <h1 className="text-xl font-semibold">Online Courses</h1>
         <button
           onClick={() => setEditItem({})}
-          className="rounded-xl px-4 py-2 bg-white/10 hover:bg-white/20"
+          className="rounded-xl px-4 py-2 bg-[var(--surface-glass-hover)] hover:bg-[var(--surface-glass-hover)]"
         >
           + New Course
         </button>
@@ -329,14 +329,14 @@ export default function OnlineCoursesAdminPage() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search by name/teaser"
-          className="w-80 rounded-xl bg-white/5 px-3 py-2 ring-1 ring-white/10"
+          className="w-80 rounded-xl bg-[var(--surface-glass)] px-3 py-2 ring-1 ring-[var(--border-primary)]"
         />
 
         <select
           value={program}
           onChange={(e) => setProgram(e.target.value)}
           disabled={loadingAll}
-          className="rounded-xl bg-white/5 px-3 py-2 ring-1 ring-white/10 disabled:opacity-60"
+          className="rounded-xl bg-[var(--surface-glass)] px-3 py-2 ring-1 ring-[var(--border-primary)] disabled:opacity-60"
           style={{ colorScheme: "dark" }}
         >
           <option value="">
@@ -353,7 +353,7 @@ export default function OnlineCoursesAdminPage() {
           value={skill}
           onChange={(e) => setSkill(e.target.value)}
           disabled={loadingAll}
-          className="rounded-xl bg-white/5 px-3 py-2 ring-1 ring-white/10 disabled:opacity-60"
+          className="rounded-xl bg-[var(--surface-glass)] px-3 py-2 ring-1 ring-[var(--border-primary)] disabled:opacity-60"
           style={{ colorScheme: "dark" }}
         >
           <option value="">
@@ -368,7 +368,7 @@ export default function OnlineCoursesAdminPage() {
 
         <button
           onClick={fetchItems}
-          className="rounded-xl px-3 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-60"
+          className="rounded-xl px-3 py-2 bg-[var(--surface-glass-hover)] hover:bg-[var(--surface-glass-hover)] disabled:opacity-60"
           disabled={loadingItems}
           title={loadingItems ? "Loading..." : "Search"}
         >
@@ -386,10 +386,10 @@ export default function OnlineCoursesAdminPage() {
             {grouped.map((group, idx) => (
               <section
                 key={idx}
-                className="rounded-2xl bg-white/5 ring-1 ring-white/10"
+                className="rounded-2xl bg-[var(--surface-glass)] ring-1 ring-[var(--border-primary)]"
               >
                 {/* group header */}
-                <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <div className="flex items-center justify-between p-4 border-b border-[var(--border-primary)]">
                   <div className="flex items-center gap-3">
                     <ProgramBadge program={group.program} />
                     <span className="font-medium">
@@ -414,7 +414,7 @@ export default function OnlineCoursesAdminPage() {
                         {it.o_course_cover_url ? (
                           <img
                             src={it.o_course_cover_url}
-                            className="w-20 h-12 rounded object-cover ring-1 ring-white/10 cursor-zoom-in"
+                            className="w-20 h-12 rounded object-cover ring-1 ring-[var(--border-primary)] cursor-zoom-in"
                             alt=""
                             title="คลิกเพื่อดูภาพใหญ่"
                             onClick={() => setPreviewUrl(it.o_course_cover_url)}
@@ -449,6 +449,14 @@ export default function OnlineCoursesAdminPage() {
                                 : it.previous_course.o_course_id || "-"}
                             </div>
                           )}
+                          {it.related_courses?.length > 0 && (
+                            <div className="text-xs mt-1 opacity-60">
+                              Related:{" "}
+                              {it.related_courses
+                                .map((r) => r.o_course_name || r.o_course_id || r)
+                                .join(", ")}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -457,7 +465,7 @@ export default function OnlineCoursesAdminPage() {
                         <input
                           title="ลำดับ"
                           type="number"
-                          className="w-16 rounded-lg bg-white/10 px-2 py-1 ring-1 ring-white/10 text-right"
+                          className="w-16 rounded-lg bg-[var(--surface-glass-hover)] px-2 py-1 ring-1 ring-[var(--border-primary)] text-right"
                           value={it.sort_order ?? 0}
                           onChange={(e) =>
                             setOrder(it._id, +e.target.value || 0)
@@ -470,7 +478,7 @@ export default function OnlineCoursesAdminPage() {
                         {/* actions */}
                         <button
                           onClick={() => setEditItem(it)}
-                          className="rounded-lg px-3 py-1 bg-white/10 hover:bg-white/20"
+                          className="rounded-lg px-3 py-1 bg-[var(--surface-glass-hover)] hover:bg-[var(--surface-glass-hover)]"
                         >
                           Edit
                         </button>
@@ -504,14 +512,14 @@ export default function OnlineCoursesAdminPage() {
       {editItem !== null && (
         <div className="fixed inset-0 z-50 bg-black/60 p-0 sm:p-4">
           <div className="mx-auto w-full sm:max-w-5xl">
-            <div className="rounded-2xl bg-slate-900 ring-1 ring-white/10 max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-3 border-b border-white/10 bg-slate-900/95 backdrop-blur">
+            <div className="rounded-2xl bg-slate-900 ring-1 ring-[var(--border-primary)] max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border-primary)] bg-slate-900/95 backdrop-blur">
                 <h2 className="text-lg font-semibold">
                   {editItem?._id ? "Edit Course" : "New Course"}
                 </h2>
                 <button
                   onClick={() => setEditItem(null)}
-                  className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20"
+                  className="px-3 py-1 rounded-lg bg-[var(--surface-glass-hover)] hover:bg-[var(--surface-glass-hover)]"
                 >
                   Close
                 </button>
@@ -540,7 +548,7 @@ export default function OnlineCoursesAdminPage() {
           <img
             src={previewUrl}
             alt="preview"
-            className="max-h-[90vh] max-w-[95vw] rounded-xl ring-1 ring-white/10"
+            className="max-h-[90vh] max-w-[95vw] rounded-xl ring-1 ring-[var(--border-primary)]"
           />
         </div>
       )}

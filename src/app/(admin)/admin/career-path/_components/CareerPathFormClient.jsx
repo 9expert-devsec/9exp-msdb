@@ -101,8 +101,15 @@ function ImageUploader({
 
     try {
       setUploading(true);
+      const { resizeImage } = await import("@/lib/resizeImage");
+      const resized = await resizeImage(file, {
+        maxWidth: 1600,
+        maxHeight: 1000,
+        quality: 0.85,
+        outputType: "image/jpeg",
+      });
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", resized);
       fd.append("folder", folder);
 
       const r = await fetch("/api/admin/upload/career-path-image", {

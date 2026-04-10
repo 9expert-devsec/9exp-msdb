@@ -16,39 +16,151 @@
   font-display: swap;
 }
 
-
 @layer base {
-  :root { 
-  color-scheme: dark; 
-  font-family: var(--font-line-seed), sans-serif;
-}
+  :root {
+    font-family: var(--font-line-seed), sans-serif;
+  }
 
-  /* สีตัวอักษรพื้นฐานของ select */
+  /* ========== Dark theme ========== */
+  [data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Surfaces */
+    --surface-primary: #020617;
+    --surface-card: rgba(15, 23, 42, 0.6);
+    --surface-card-hover: rgba(15, 23, 42, 0.8);
+    --surface-input: rgba(15, 23, 42, 0.6);
+    --surface-overlay: rgba(0, 0, 0, 0.6);
+    --surface-glass: rgba(255, 255, 255, 0.05);
+    --surface-glass-hover: rgba(255, 255, 255, 0.075);
+
+    /* Borders */
+    --border-primary: rgba(255, 255, 255, 0.10);
+    --border-hover: rgba(255, 255, 255, 0.20);
+
+    /* Text */
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    --text-muted: #64748b;
+
+    /* Accents */
+    --accent-emerald: #34d399;
+    --accent-sky: #38bdf8;
+    --accent-amber: #fbbf24;
+    --accent-rose: #fb7185;
+
+    /* Shadows */
+    --shadow-card: 0 12px 42px rgba(0, 0, 0, 0.25);
+    --shadow-glow-emerald: 0 0 28px rgba(16, 185, 129, 0.35);
+
+    /* Accent display (stat values, badges) */
+    --accent-emerald-text: #34d399;
+    --accent-sky-text: #38bdf8;
+    --accent-amber-text: #fbbf24;
+    --accent-rose-text: #fb7185;
+
+    /* Icon box tones */
+    --icon-emerald-bg: rgba(16, 185, 129, 0.15);
+    --icon-emerald-text: #6ee7b7;
+    --icon-sky-bg: rgba(56, 189, 248, 0.15);
+    --icon-sky-text: #7dd3fc;
+    --icon-amber-bg: rgba(251, 191, 36, 0.15);
+    --icon-amber-text: #fde68a;
+    --icon-rose-bg: rgba(244, 63, 94, 0.15);
+    --icon-rose-text: #fda4af;
+
+    /* Shadows */
+    --shadow-card-hover: 0 16px 48px rgba(0, 0, 0, 0.3);
+
+    /* Chart / Progress bars */
+    --bar-bg: rgba(15, 23, 42, 0.7);
+    --bar-track: rgba(255, 255, 255, 0.05);
+
+    /* Glass card */
+    --glass-gradient: linear-gradient(to bottom right, rgba(255,255,255,0.14), rgba(255,255,255,0.06), rgba(255,255,255,0.10));
+    --glass-border: none;
+  }
+
+  /* ========== Light theme ========== */
+  [data-theme="light"] {
+    color-scheme: light;
+
+    /* Surfaces */
+    --surface-primary: #F1F5F9;
+    --surface-card: #FFFFFF;
+    --surface-card-hover: #F8FAFC;
+    --surface-input: #F8FAFC;
+    --surface-overlay: rgba(15, 23, 42, 0.4);
+    --surface-glass: #FFFFFF;
+    --surface-glass-hover: #F8FAFC;
+
+    /* Borders */
+    --border-primary: #E2E8F0;
+    --border-hover: #CBD5E1;
+
+    /* Text */
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-tertiary: #64748B;
+    --text-muted: #94A3B8;
+
+    /* Accents */
+    --accent-emerald: #059669;
+    --accent-sky: #0284c7;
+    --accent-amber: #d97706;
+    --accent-rose: #e11d48;
+
+    /* Accent display (stat values, badges) */
+    --accent-emerald-text: #059669;
+    --accent-sky-text: #0284c7;
+    --accent-amber-text: #d97706;
+    --accent-rose-text: #e11d48;
+
+    /* Icon box tones */
+    --icon-emerald-bg: #D1FAE5;
+    --icon-emerald-text: #059669;
+    --icon-sky-bg: #E0F2FE;
+    --icon-sky-text: #0284C7;
+    --icon-amber-bg: #FEF3C7;
+    --icon-amber-text: #D97706;
+    --icon-rose-bg: #FFE4E6;
+    --icon-rose-text: #E11D48;
+
+    /* Shadows */
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 6px 24px rgba(0,0,0,0.06);
+    --shadow-card-hover: 0 2px 8px rgba(0,0,0,0.06), 0 12px 36px rgba(0,0,0,0.08);
+    --shadow-glow-emerald: 0 0 20px rgba(16, 185, 129, 0.15);
+
+    /* Chart / Progress bars */
+    --bar-bg: #F1F5F9;
+    --bar-track: #E2E8F0;
+
+    /* Glass card (no gradient in light mode) */
+    --glass-gradient: none;
+    --glass-border: 1px solid #E2E8F0;
+  }
+
   select {
-    color-scheme: dark;           /* กันบางเบราว์เซอร์ไม่อ่านจาก :root */
-    color: #e5e7eb;               /* text-slate-200 */
-    background-color: rgba(255,255,255,.06);
-    border: 1px solid rgba(255,255,255,.12);
+    color: var(--text-secondary);
+    background-color: var(--surface-input);
+    border: 1px solid var(--border-primary);
     border-radius: .75rem;
   }
 
-  /* หลายเบราว์เซอร์ (เช่น Firefox) จะยอมให้สไตล์ option ได้ */
   select option {
-    color: #e5e7eb;               /* ทำตัวที่ยังไม่ถูกเลือกให้สีเดียวกับที่เลือก */
-    background: #0f172a;          /* bg-slate-900 */
+    color: var(--text-secondary);
+    background: var(--surface-card);
   }
 
-  /* สีตอน hover/selected (ที่รองรับ) */
   select option:checked,
   select option:hover {
-    color: #ffffff;
-    background: #1f2937;          /* bg-slate-800 */
+    color: var(--text-primary);
+    background: var(--surface-card-hover);
   }
 
-  /* กันบางธีมที่ฉีด opacity ให้ option */
-  select option[disabled] { color: #94a3b8; } /* ให้จางเฉพาะ disabled จริง ๆ */
+  select option[disabled] { color: var(--text-muted); }
 }
-
 
 body {
   background: var(--background);

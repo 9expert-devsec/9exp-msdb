@@ -52,7 +52,9 @@ export async function POST(req) {
 
   try {
     const body = await req.json();
-    const { name, name_en, bio, programs } = body;
+    const { name, name_en, bio, programs,
+      photo_url, photo_public_id,
+      signature_url, signature_public_id } = body;
 
     if (!name?.trim()) {
       return NextResponse.json(
@@ -63,9 +65,13 @@ export async function POST(req) {
 
     const doc = await Instructor.create({
       name: name.trim(),
-      name_en: name_en?.trim() || "", // ✅ NEW
+      name_en: name_en?.trim() || "",
       bio: bio?.trim() || "",
       programs: Array.isArray(programs) ? programs : [],
+      photo_url: photo_url || "",
+      photo_public_id: photo_public_id || "",
+      signature_url: signature_url || "",
+      signature_public_id: signature_public_id || "",
     });
 
     return NextResponse.json({ ok: true, item: doc });
