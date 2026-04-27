@@ -1,9 +1,8 @@
-// src/app/api/ai/online-courses/route.js
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import OnlineCourse from "@/models/OnlineCourse";
-import "@/models/Program";
-import "@/models/Skill";
+import Program from "@/models/Program";
+import Skill from "@/models/Skill";
 
 import { checkAiApiKey } from "@/lib/ai-auth";
 import { corsHeaders, handleOptions } from "@/lib/cors";
@@ -21,10 +20,14 @@ function applyCors(req, res) {
   return res;
 }
 
-const toInt = (v, d = 0) => {
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : d;
-};
+function isObjectIdLike(str = "") {
+  return /^[0-9a-fA-F]{24}$/.test(str);
+}
+
+function toPositiveInt(value, fallback) {
+  const n = parseInt(value || "", 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
 
 export async function GET(req) {
   const authError = checkAiApiKey(req);
@@ -36,16 +39,20 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
 
     const q = (searchParams.get("q") || "").trim();
-    const program = searchParams.get("program");
-    const skill = searchParams.get("skill");
 
-    const limit = Math.min(
-      Math.max(toInt(searchParams.get("limit"), 50), 1),
-      300,
-    );
-    const page = Math.max(toInt(searchParams.get("page"), 1), 1);
+    // รองรับทั้ง param เดิม และ param ใหม่
+    const programParam = (searchParams.get("program") || "").trim();
+    const programIdParam = (searchParams.get("program_id") || "").trim();
+    const skillParam = (searchParams.get("skill") || "").trim();
+    const skillIdParam = (searchParams.get("skill_id") || "").trim();
+
+    const limit = Math.min(300, toPositiveInt(searchParams.get("limit"), 50));
+    const page = Math.max(1, toPositiveInt(searchParams.get("page"), 1));
 
     const where = {};
+
+    // ---------- q search ----------
+    // คง behavior เดิมแบบ regex search
     if (q) {
       where.$or = [
         { o_course_name: { $regex: q, $options: "i" } },
@@ -53,15 +60,63 @@ export async function GET(req) {
         { o_course_id: { $regex: q, $options: "i" } },
       ];
     }
-    if (program) where.program = program;
-    if (skill) where.skills = skill;
+
+    // ---------- program filter ----------
+    // รองรับ:
+    // - ?program=<ObjectId>
+    // - ?program=<program_id>
+    // - ?program_id=<program_id>
+    const rawProgram = programIdParam || programParam;
+    if (rawProgram) {
+      if (isObjectIdLike(rawProgram)) {
+        where.program = rawProgram;
+      } else {
+        const foundProgram = await Program.findOne({ program_id: rawProgram })
+          .select("_id")
+          .lean();
+
+        if (!foundProgram) {
+          const res = NextResponse.json(
+            { ok: true, total: 0, page, limit, items: [] },
+            { status: 200 },
+          );
+          return applyCors(req, res);
+        }
+
+        where.program = foundProgram._id;
+      }
+    }
+
+    // ---------- skill filter ----------
+    // รองรับ:
+    // - ?skill=<ObjectId>
+    // - ?skill=<skill_id>
+    // - ?skill_id=<skill_id>
+    const rawSkill = skillIdParam || skillParam;
+    if (rawSkill) {
+      if (isObjectIdLike(rawSkill)) {
+        where.skills = rawSkill;
+      } else {
+        const foundSkill = await Skill.findOne({ skill_id: rawSkill })
+          .select("_id")
+          .lean();
+
+        if (!foundSkill) {
+          const res = NextResponse.json(
+            { ok: true, total: 0, page, limit, items: [] },
+            { status: 200 },
+          );
+          return applyCors(req, res);
+        }
+
+        where.skills = foundSkill._id;
+      }
+    }
 
     const total = await OnlineCourse.countDocuments(where);
 
     const items = await OnlineCourse.find(where)
-      .select(
-        "o_course_cover_url o_course_id o_course_name o_course_teaser o_course_levels o_course_link o_course_price o_course_duration program skills sort_order related_courses createdAt updatedAt",
-      )
+      // ไม่ใส่ .select() = ดึงครบทุก field ของ OnlineCourse
       .populate(
         "program",
         "program_id program_name programiconurl programcolor sort_order",
@@ -69,7 +124,8 @@ export async function GET(req) {
       .populate("skills", "skill_id skill_name skilliconurl skillcolor")
       .populate({
         path: "related_courses",
-        select: "o_course_id o_course_name o_course_teaser o_course_cover_url o_course_price o_number_lessons o_course_traininghours",
+        select:
+          "o_course_id o_course_name o_course_teaser o_course_cover_url o_course_price o_number_lessons o_course_traininghours",
       })
       .sort({ sort_order: 1, createdAt: -1 })
       .skip((page - 1) * limit)
@@ -80,8 +136,11 @@ export async function GET(req) {
       { ok: true, total, page, limit, items },
       { status: 200 },
     );
+
     return applyCors(req, res);
   } catch (err) {
+    console.error("GET /api/ai/online-courses error:", err);
+
     const res = NextResponse.json(
       { ok: false, error: err?.message || "Internal Server Error" },
       { status: 500 },
