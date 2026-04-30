@@ -71,6 +71,7 @@ async function buildProgramToSkillIdsMap(skillSelect) {
   for (const set of map.values()) {
     for (const sid of set) allSkillIds.push(sid);
   }
+
   const uniqSkillIds = [...new Set(allSkillIds)];
 
   const skills = uniqSkillIds.length
@@ -102,9 +103,9 @@ export async function GET(req) {
       : true;
 
     const items = await Program.find()
-      .select(
-        "program_id program_name programiconurl programcolor sort_order createdAt updatedAt",
-      )
+      // ดึงครบทุก field ของ Program model
+      // ตัด __v ออกเพื่อให้ response สะอาดขึ้น
+      .select("-__v")
       .sort({ program_name: 1 })
       .lean();
 
@@ -175,6 +176,8 @@ export async function GET(req) {
 
     return applyCors(req, res);
   } catch (err) {
+    console.error("GET /api/ai/programs error:", err);
+
     const res = NextResponse.json(
       { ok: false, error: err?.message || "Server error" },
       { status: 500 },
