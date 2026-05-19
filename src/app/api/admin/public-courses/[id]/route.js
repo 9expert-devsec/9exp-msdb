@@ -7,6 +7,7 @@ import "@/models/Skill";
 
 import { requireRole } from "@/lib/requireRole";
 import { withRateLimit } from "@/lib/ratelimit";
+import { dispatchWebhook } from "@/lib/webhook";
 import { CourseSchema, cleanArray, cleanTopics, toInt } from "../route";
 
 /* -------- GET /api/admin/public-courses/:id -------- */
@@ -96,6 +97,8 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(
         );
       }
 
+      dispatchWebhook("course.updated", updated);
+
       return NextResponse.json({ ok: true, item: updated }, { status: 200 });
     } catch (e) {
       if (e instanceof Response) return e;
@@ -122,6 +125,7 @@ export const DELETE = withRateLimit({ points: 10, duration: 60 })(
           { status: 404 }
         );
       }
+      dispatchWebhook("course.deleted", { _id: id });
       return NextResponse.json({ ok: true, id }, { status: 200 });
     } catch (e) {
       if (e instanceof Response) return e;

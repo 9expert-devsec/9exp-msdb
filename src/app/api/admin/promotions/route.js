@@ -7,6 +7,7 @@ import OnlineCourse from "@/models/OnlineCourse";
 
 import { requireRole } from "@/lib/requireRole";
 import { withRateLimit } from "@/lib/ratelimit";
+import { dispatchWebhook } from "@/lib/webhook";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -254,6 +255,8 @@ export const POST = withRateLimit({ points: 20, duration: 60 })(async (req) => {
     const doc = await basePromotionQuery({ _id: created._id }).lean();
     const item = addComputedFields(doc[0]);
 
+    dispatchWebhook("promotion.created", item);
+
     return NextResponse.json({ ok: true, item }, { status: 201 });
   } catch (e) {
     if (e instanceof Response) return e;
@@ -300,6 +303,7 @@ export const PATCH = withRateLimit({ points: 30, duration: 60 })(async (req) => 
     }
 
     const item = addComputedFields(updated);
+    dispatchWebhook("promotion.updated", item);
     return NextResponse.json({ ok: true, item }, { status: 200 });
   } catch (e) {
     if (e instanceof Response) return e;
@@ -333,6 +337,8 @@ export const DELETE = withRateLimit({ points: 10, duration: 60 })(async (req) =>
         { status: 404 }
       );
     }
+
+    dispatchWebhook("promotion.deleted", { _id: id });
 
     return NextResponse.json({ ok: true, id }, { status: 200 });
   } catch (e) {

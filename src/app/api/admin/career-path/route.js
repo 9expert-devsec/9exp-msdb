@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import CareerPath from "@/models/CareerPath";
 import PublicCourse from "@/models/PublicCourse";
+import { dispatchWebhook } from "@/lib/webhook";
 
 export const dynamic = "force-dynamic";
 
@@ -375,6 +376,8 @@ export async function POST(req) {
     }
 
     const created = await CareerPath.create(payload);
+
+    dispatchWebhook("career_path.created", created.toObject());
 
     return NextResponse.json({ ok: true, item: created }, { status: 201 });
   } catch (err) {

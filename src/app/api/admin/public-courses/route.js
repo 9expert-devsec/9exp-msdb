@@ -6,6 +6,7 @@ import "@/models/Program";
 import "@/models/Skill";
 import { requireRole } from "@/lib/requireRole";
 import { withRateLimit } from "@/lib/ratelimit";
+import { dispatchWebhook } from "@/lib/webhook";
 import { z } from "zod";
 
 /* ---------- helpers ---------- */
@@ -155,6 +156,8 @@ export const POST = withRateLimit({ points: 10, duration: 60 })(async (req) => {
       .populate("related_courses", "course_id course_name")
       .lean();
 
+    dispatchWebhook("course.created", item);
+
     return NextResponse.json({ ok: true, item }, { status: 201 });
   } catch (e) {
     if (e instanceof Response) return e;
@@ -217,6 +220,8 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(async (req) => 
       );
     }
 
+    dispatchWebhook("course.updated", item);
+
     return NextResponse.json({ ok: true, item }, { status: 200 });
   } catch (e) {
     if (e instanceof Response) return e;
@@ -246,6 +251,8 @@ export const DELETE = withRateLimit({ points: 10, duration: 60 })(async (req) =>
         { status: 404 }
       );
     }
+
+    dispatchWebhook("course.deleted", { _id: id });
 
     return NextResponse.json({ ok: true, id }, { status: 200 });
   } catch (e) {

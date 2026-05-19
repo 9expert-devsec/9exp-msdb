@@ -5,6 +5,7 @@ import Faq from "@/models/Faq";
 
 import { requireRole } from "@/lib/requireRole";
 import { withRateLimit } from "@/lib/ratelimit";
+import { dispatchWebhook } from "@/lib/webhook";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -173,6 +174,8 @@ export const POST = withRateLimit({ points: 20, duration: 60 })(
       const created = await Faq.create(payload);
       const item = created.toObject();
 
+      dispatchWebhook("faq.created", item);
+
       return NextResponse.json({ ok: true, item }, { status: 201 });
     } catch (e) {
       if (e instanceof Response) return e;
@@ -219,6 +222,8 @@ export const PATCH = withRateLimit({ points: 30, duration: 60 })(
         );
       }
 
+      dispatchWebhook("faq.updated", updated);
+
       return NextResponse.json({ ok: true, item: updated }, { status: 200 });
     } catch (e) {
       if (e instanceof Response) return e;
@@ -254,6 +259,8 @@ export const DELETE = withRateLimit({ points: 10, duration: 60 })(
           { status: 404 }
         );
       }
+
+      dispatchWebhook("faq.deleted", { _id: id });
 
       return NextResponse.json({ ok: true, id }, { status: 200 });
     } catch (e) {

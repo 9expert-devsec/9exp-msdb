@@ -6,6 +6,7 @@ import "@/models/Program";
 
 import { checkAiApiKey } from "@/lib/ai-auth";
 import { corsHeaders, handleOptions } from "@/lib/cors";
+import { dispatchWebhook } from "@/lib/webhook";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -91,6 +92,49 @@ export async function GET(req) {
     const res = NextResponse.json(
       { ok: false, error: err?.message || "Internal error" },
       { status: 500 }
+    );
+    return applyCors(req, res);
+  }
+}
+
+/* ---------------- POST: create instructor ---------------- */
+export async function POST(req) {
+  const authError = checkAiApiKey(req);
+  if (authError) return applyCors(req, authError);
+
+  try {
+    await dbConnect();
+    const body = await req.json();
+
+    if (!body?.name || !String(body.name).trim()) {
+      const res = NextResponse.json(
+        { ok: false, error: "name is required" },
+        { status: 400 },
+      );
+      return applyCors(req, res);
+    }
+
+    const doc = await Instructor.create({
+      name: String(body.name).trim(),
+      name_en: String(body.name_en || "").trim(),
+      bio: String(body.bio || "").trim(),
+      programs: Array.isArray(body.programs) ? body.programs : [],
+      photo_url: body.photo_url || "",
+      photo_public_id: body.photo_public_id || "",
+      signature_url: body.signature_url || "",
+      signature_public_id: body.signature_public_id || "",
+    });
+
+    const item = doc.toObject();
+    dispatchWebhook("instructor.created", item);
+
+    const res = NextResponse.json({ ok: true, item }, { status: 201 });
+    return applyCors(req, res);
+  } catch (err) {
+    console.error("POST /api/ai/instructors error:", err);
+    const res = NextResponse.json(
+      { ok: false, error: err?.message || "Create failed" },
+      { status: 400 },
     );
     return applyCors(req, res);
   }

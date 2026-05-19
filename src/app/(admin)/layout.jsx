@@ -30,6 +30,8 @@ import {
   HiOutlineXMark,
   HiOutlineSun,
   HiOutlineMoon,
+  HiOutlineBoltSlash,
+  HiOutlineSignal,
 } from "react-icons/hi2";
 
 export const dynamic = "force-dynamic";
@@ -472,6 +474,19 @@ export default function AdminLayout({ children }) {
               href="/admin/instructors"
               icon={HiOutlineUserGroup}
               label="Instructor"
+              sidebarOpen={sidebarOpen}
+              isDark={isDark}
+            />
+
+            {/* GROUP: Settings */}
+            {sidebarOpen && (
+              <div className={`${groupTitleClass} mt-3`}>Settings</div>
+            )}
+
+            <NavItem
+              href="/admin/webhooks"
+              icon={HiOutlineSignal}
+              label="Webhooks"
               sidebarOpen={sidebarOpen}
               isDark={isDark}
             />

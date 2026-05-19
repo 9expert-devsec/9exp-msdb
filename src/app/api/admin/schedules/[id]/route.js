@@ -2,6 +2,7 @@
 import dbConnect from "@/lib/mongoose";
 import "@/models/PublicCourse";
 import Schedule from "@/models/Schedule";
+import { dispatchWebhook } from "@/lib/webhook";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +79,9 @@ export async function PATCH(req, ctx) {
   }).populate({ path: "course", populate: { path: "program" } });
 
   if (!item) return new Response("Not found", { status: 404 });
+
+  dispatchWebhook("schedule.updated", item);
+
   return Response.json({ ok: true, item });
 }
 
@@ -88,6 +92,8 @@ export async function DELETE(_req, ctx) {
 
   const gone = await Schedule.findByIdAndDelete(id);
   if (!gone) return new Response("Not found", { status: 404 });
+
+  dispatchWebhook("schedule.deleted", { _id: id });
 
   return Response.json({ ok: true });
 }

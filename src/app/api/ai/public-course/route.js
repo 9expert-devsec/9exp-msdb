@@ -6,6 +6,7 @@ import Skill from "@/models/Skill";
 
 import { checkAiApiKey } from "@/lib/ai-auth";
 import { corsHeaders, handleOptions } from "@/lib/cors";
+import { dispatchWebhook } from "@/lib/webhook";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -165,6 +166,49 @@ export async function GET(req) {
     const res = NextResponse.json(
       { ok: false, error: err?.message || "Internal error" },
       { status: 500 },
+    );
+    return applyCors(req, res);
+  }
+}
+
+/* ---------------- POST: create public course ---------------- */
+export async function POST(req) {
+  const authError = checkAiApiKey(req);
+  if (authError) return applyCors(req, authError);
+
+  try {
+    await dbConnect();
+    const body = await req.json();
+
+    if (!body?.course_id || !body?.course_name) {
+      const res = NextResponse.json(
+        { ok: false, error: "course_id and course_name are required" },
+        { status: 400 },
+      );
+      return applyCors(req, res);
+    }
+
+    const created = await PublicCourse.create(body);
+    const item = await PublicCourse.findById(created._id)
+      .populate({
+        path: "program",
+        select: "program_id program_name programiconurl sort_order",
+      })
+      .populate({
+        path: "skills",
+        select: "skill_id skill_name skilliconurl skillcolor",
+      })
+      .lean();
+
+    dispatchWebhook("course.created", item);
+
+    const res = NextResponse.json({ ok: true, item }, { status: 201 });
+    return applyCors(req, res);
+  } catch (err) {
+    console.error("POST /api/ai/public-course error:", err);
+    const res = NextResponse.json(
+      { ok: false, error: err?.message || "Create failed" },
+      { status: 400 },
     );
     return applyCors(req, res);
   }

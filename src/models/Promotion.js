@@ -48,6 +48,10 @@ const PromotionSchema = new Schema(
     // สถานะ
     is_published: { type: Boolean, default: true },
     is_pinned: { type: Boolean, default: false },
+
+    // แหล่งที่มา (dual-write: MSDB หรือ Genesis)
+    // ใช้ป้องกัน webhook loop ฝั่ง Genesis
+    source: { type: String, enum: ["msdb", "genesis"], default: "msdb" },
   },
   {
     timestamps: true,

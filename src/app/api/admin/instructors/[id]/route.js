@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import Instructor from "@/models/Instructor";
+import { dispatchWebhook } from "@/lib/webhook";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,8 @@ export async function PATCH(req, { params }) {
       );
     }
 
+    dispatchWebhook("instructor.updated", doc.toObject ? doc.toObject() : doc);
+
     return NextResponse.json({ ok: true, item: doc });
   } catch (err) {
     return NextResponse.json(
@@ -63,6 +66,7 @@ export async function DELETE(_req, { params }) {
         { status: 404 }
       );
     }
+    dispatchWebhook("instructor.deleted", { _id: id });
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json(

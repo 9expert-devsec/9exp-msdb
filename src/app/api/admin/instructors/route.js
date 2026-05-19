@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import Instructor from "@/models/Instructor";
 import "@/models/Program";
+import { dispatchWebhook } from "@/lib/webhook";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,8 @@ export async function POST(req) {
       signature_url: signature_url || "",
       signature_public_id: signature_public_id || "",
     });
+
+    dispatchWebhook("instructor.created", doc.toObject());
 
     return NextResponse.json({ ok: true, item: doc });
   } catch (err) {

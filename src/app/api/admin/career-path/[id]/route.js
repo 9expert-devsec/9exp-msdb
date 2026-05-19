@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import CareerPath from "@/models/CareerPath";
 import PublicCourse from "@/models/PublicCourse";
+import { dispatchWebhook } from "@/lib/webhook";
 
 export const dynamic = "force-dynamic";
 
@@ -316,6 +317,7 @@ export async function PATCH(req, ctx) {
         { ok: false, error: "Not found" },
         { status: 404 },
       );
+    dispatchWebhook("career_path.updated", item);
     return NextResponse.json({ ok: true, item }, { status: 200 });
   } catch (err) {
     const msg = String(err?.message || "");
@@ -346,6 +348,8 @@ export async function DELETE(_req, ctx) {
         { ok: false, error: "Not found" },
         { status: 404 },
       );
+
+    dispatchWebhook("career_path.deleted", { _id: id });
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err) {

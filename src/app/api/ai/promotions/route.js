@@ -5,6 +5,7 @@ import "@/models/PublicCourse";
 import "@/models/OnlineCourse";
 import { checkAiApiKey } from "@/lib/ai-auth";
 import { corsHeaders, handleOptions } from "@/lib/cors";
+import { dispatchWebhook } from "@/lib/webhook";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -179,6 +180,49 @@ export async function GET(req) {
     const res = NextResponse.json(
       { ok: false, error: err?.message || "Internal Server Error" },
       { status: 500 },
+    );
+    return applyCors(req, res);
+  }
+}
+
+/* ---------------- POST: create promotion (dual-write) ---------------- */
+export async function POST(req) {
+  const authError = checkAiApiKey(req);
+  if (authError) return applyCors(req, authError);
+
+  try {
+    await dbConnect();
+    const body = await req.json();
+
+    if (!body?.name) {
+      const res = NextResponse.json(
+        { ok: false, error: "name is required" },
+        { status: 400 },
+      );
+      return applyCors(req, res);
+    }
+
+    // source: distinguish between MSDB and Genesis-originated writes
+    // เพื่อให้ Genesis ตรวจ source ใน webhook payload และไม่ loop
+    const source = body.source === "genesis" ? "genesis" : "msdb";
+
+    const payload = { ...body, source };
+
+    const created = await Promotion.create(payload);
+    const item = await Promotion.findById(created._id)
+      .populate({ path: "related_public_courses", select: "course_id course_name" })
+      .populate({ path: "related_online_courses", select: "o_course_id o_course_name" })
+      .lean();
+
+    dispatchWebhook("promotion.created", item);
+
+    const res = NextResponse.json({ ok: true, item }, { status: 201 });
+    return applyCors(req, res);
+  } catch (err) {
+    console.error("POST /api/ai/promotions error:", err);
+    const res = NextResponse.json(
+      { ok: false, error: err?.message || "Create failed" },
+      { status: 400 },
     );
     return applyCors(req, res);
   }

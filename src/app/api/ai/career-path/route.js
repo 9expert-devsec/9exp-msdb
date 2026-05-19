@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import CareerPath from "@/models/CareerPath";
 import { checkAiApiKey } from "@/lib/ai-auth";
+import { dispatchWebhook } from "@/lib/webhook";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,54 @@ export async function GET(req) {
     return NextResponse.json(
       { ok: false, error: err?.message || "Internal error" },
       { status: 500 },
+    );
+  }
+}
+
+/* ---------------- POST: create career path ---------------- */
+export async function POST(req) {
+  const authError = checkAiApiKey(req);
+  if (authError) return authError;
+
+  try {
+    await dbConnect();
+    const body = await req.json();
+
+    const title = clean(body?.title);
+    const slug = clean(body?.slug);
+
+    if (!title) {
+      return NextResponse.json(
+        { ok: false, error: "title is required" },
+        { status: 400 },
+      );
+    }
+    if (!slug) {
+      return NextResponse.json(
+        { ok: false, error: "slug is required" },
+        { status: 400 },
+      );
+    }
+
+    const created = await CareerPath.create(body);
+    const item = created.toObject();
+
+    dispatchWebhook("career_path.created", item);
+
+    return NextResponse.json({ ok: true, item }, { status: 201 });
+  } catch (err) {
+    const msg = String(err?.message || "");
+    const isDup = msg.includes("E11000") && msg.includes("slug");
+    if (isDup) {
+      return NextResponse.json(
+        { ok: false, error: "slug already exists" },
+        { status: 409 },
+      );
+    }
+    console.error("POST /api/ai/career-path error:", err);
+    return NextResponse.json(
+      { ok: false, error: err?.message || "Create failed" },
+      { status: 400 },
     );
   }
 }

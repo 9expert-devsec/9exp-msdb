@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import Schedule from "@/models/Schedule";
 import PublicCourse from "@/models/PublicCourse";
+import { dispatchWebhook } from "@/lib/webhook";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -135,6 +136,8 @@ export async function POST(req) {
         populate: { path: "program", select: "program_name programiconurl" },
       })
       .lean();
+
+    dispatchWebhook("schedule.created", item);
 
     return NextResponse.json({ ok: true, item }, { status: 201 });
   } catch (e) {
