@@ -4,6 +4,7 @@ import dbConnect from "@/lib/mongoose";
 import CareerPath from "@/models/CareerPath";
 import { checkAiApiKey } from "@/lib/ai-auth";
 import { dispatchWebhook } from "@/lib/webhook";
+import { normalizeBody } from "@/lib/career-path";
 
 export const dynamic = "force-dynamic";
 
@@ -112,7 +113,15 @@ export async function POST(req) {
       );
     }
 
-    const created = await CareerPath.create(body);
+    const existing = await CareerPath.findOne({ slug }).select("_id").lean();
+    if (existing) {
+      return NextResponse.json(
+        { ok: false, error: `slug "${slug}" already exists` },
+        { status: 409 },
+      );
+    }
+
+    const created = await CareerPath.create(normalizeBody(body));
     const item = created.toObject();
 
     dispatchWebhook("career_path.created", item);

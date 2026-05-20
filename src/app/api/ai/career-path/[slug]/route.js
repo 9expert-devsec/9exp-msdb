@@ -4,6 +4,7 @@ import dbConnect from "@/lib/mongoose";
 import CareerPath from "@/models/CareerPath";
 import { checkAiApiKey } from "@/lib/ai-auth";
 import { dispatchWebhook } from "@/lib/webhook";
+import { normalizeBody } from "@/lib/career-path";
 
 export const dynamic = "force-dynamic";
 
@@ -62,12 +63,12 @@ export async function PUT(req, ctx) {
     }
 
     const body = await req.json();
-    delete body._id;
 
-    const item = await CareerPath.findOneAndUpdate({ slug: s }, body, {
-      new: true,
-      runValidators: true,
-    }).lean();
+    const item = await CareerPath.findOneAndUpdate(
+      { slug: s },
+      { $set: normalizeBody(body) },
+      { new: true, runValidators: true },
+    ).lean();
 
     if (!item) {
       return NextResponse.json(
