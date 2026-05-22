@@ -112,6 +112,9 @@ function normalizeCurriculumBlocks(curr) {
             note: pickStr(it?.note),
             snap: it?.snap && typeof it.snap === "object" ? it.snap : {},
             sortOrder: Number(it?.sortOrder ?? ii) || ii,
+            prerequisites: Array.isArray(it?.prerequisites)
+              ? it.prerequisites.map((c) => String(c)).filter(Boolean)
+              : [],
           };
         })
         .filter((it) => {
