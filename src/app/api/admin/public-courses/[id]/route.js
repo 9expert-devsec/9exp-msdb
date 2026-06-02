@@ -8,7 +8,8 @@ import "@/models/Skill";
 import { requireRole } from "@/lib/requireRole";
 import { withRateLimit } from "@/lib/ratelimit";
 import { dispatchWebhook } from "@/lib/webhook";
-import { CourseSchema, cleanArray, cleanTopics, toInt } from "../route";
+import { shapePublicCourseForExternal } from "@/lib/shapeCourseForExternal";
+import { PublicCourseSchema, cleanArray, toInt, normalizeOutline } from "../route";
 
 /* -------- GET /api/admin/public-courses/:id -------- */
 export const GET = withRateLimit({ points: 60, duration: 60 })(
@@ -53,32 +54,74 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(
       const raw = await req.text();
       const json = raw ? JSON.parse(raw) : {};
 
-      // ทำความสะอาดเหมือน POST
-      json.course_objectives = cleanArray(json.course_objectives);
-      json.course_target_audience = cleanArray(json.course_target_audience);
-      json.course_prerequisites = cleanArray(json.course_prerequisites);
-      json.course_system_requirements = cleanArray(
-        json.course_system_requirements
-      );
-      json.training_topics = cleanTopics(json.training_topics);
-      json.course_doc_paths = cleanArray(json.course_doc_paths);
-      json.course_lab_paths = cleanArray(json.course_lab_paths);
-      json.course_case_study_paths = cleanArray(json.course_case_study_paths);
-      json.website_urls = cleanArray(json.website_urls);
-      json.exam_links = cleanArray(json.exam_links);
+      // Capture which keys the client ACTUALLY sent, BEFORE any mutation, so
+      // this stays a true partial update (omitted fields are never fabricated).
+      const providedKeys = new Set(Object.keys(json));
+      const normalized = { ...json };
 
-      json.course_trainingdays = toInt(json.course_trainingdays, 0);
-      json.course_traininghours = toInt(json.course_traininghours, 0);
-      json.course_price = toInt(json.course_price, 0);
-      json.sort_order = toInt(json.sort_order, 0);
-      json.course_netprice =
-        json.course_netprice === "" || json.course_netprice == null
-          ? null
-          : toInt(json.course_netprice, null);
+      // Only normalize array fields that were actually provided.
+      const ARRAY_FIELDS = [
+        "course_objectives",
+        "course_target_audience",
+        "course_prerequisites",
+        "course_system_requirements",
+        "course_lab_paths",
+        "course_case_study_paths",
+        "website_urls",
+        "exam_links",
+      ];
+      for (const key of ARRAY_FIELDS) {
+        if (providedKeys.has(key)) {
+          normalized[key] = cleanArray(normalized[key]);
+        }
+      }
 
-      // partial validate
-      const PartialSchema = CourseSchema.partial();
-      const updates = PartialSchema.parse(json);
+      // Normalize outline objects only when actually sent (valid file_id/null).
+      for (const key of ["course_outline_en", "course_outline_th"]) {
+        if (providedKeys.has(key)) {
+          normalized[key] = normalizeOutline(normalized[key]);
+        }
+      }
+
+      // Only coerce numeric fields that were actually provided.
+      const INT_FIELDS = [
+        "course_trainingdays",
+        "course_traininghours",
+        "course_price",
+        "sort_order",
+      ];
+      for (const key of INT_FIELDS) {
+        if (providedKeys.has(key)) {
+          normalized[key] = toInt(normalized[key], 0);
+        }
+      }
+      if (providedKeys.has("course_netprice")) {
+        normalized.course_netprice =
+          normalized.course_netprice === "" || normalized.course_netprice == null
+            ? null
+            : toInt(normalized.course_netprice, null);
+      }
+
+      // Only coerce previous_course "" -> null when the key was actually sent.
+      if (
+        providedKeys.has("previous_course") &&
+        normalized.previous_course === ""
+      ) {
+        normalized.previous_course = null;
+      }
+
+      // partial validate (training_topics cleaning is handled inline by the
+      // schema transform, so no separate cleanTopics step is needed).
+      const parsed = PublicCourseSchema.partial().parse(normalized);
+
+      // CRITICAL: Zod fills .default() values for fields the client never sent.
+      // Rebuild `updates` from providedKeys so Zod-injected defaults are
+      // dropped and findByIdAndUpdate only touches fields the client provided.
+      const updates = {};
+      for (const key of providedKeys) {
+        if (key === "_id") continue;
+        if (key in parsed) updates[key] = parsed[key];
+      }
 
       const updated = await PublicCourse.findByIdAndUpdate(id, updates, {
         new: true,
@@ -97,9 +140,10 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(
         );
       }
 
-      dispatchWebhook("course.updated", updated);
+      const shaped = shapePublicCourseForExternal(updated);
+      dispatchWebhook("course.updated", shaped);
 
-      return NextResponse.json({ ok: true, item: updated }, { status: 200 });
+      return NextResponse.json({ ok: true, item: shaped }, { status: 200 });
     } catch (e) {
       if (e instanceof Response) return e;
       console.error("❌ PATCH by id error:", e);

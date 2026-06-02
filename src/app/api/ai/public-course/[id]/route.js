@@ -8,6 +8,7 @@ import "@/models/Skill";
 import { checkAiApiKey } from "@/lib/ai-auth";
 import { corsHeaders, handleOptions } from "@/lib/cors";
 import { dispatchWebhook } from "@/lib/webhook";
+import { shapePublicCourseForExternal } from "@/lib/shapeCourseForExternal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,9 +54,10 @@ export async function PUT(req, { params }) {
       return applyCors(req, res);
     }
 
-    dispatchWebhook("course.updated", item);
+    const shaped = shapePublicCourseForExternal(item);
+    dispatchWebhook("course.updated", shaped);
 
-    const res = NextResponse.json({ ok: true, item }, { status: 200 });
+    const res = NextResponse.json({ ok: true, item: shaped }, { status: 200 });
     return applyCors(req, res);
   } catch (err) {
     console.error("PUT /api/ai/public-course/[id] error:", err);

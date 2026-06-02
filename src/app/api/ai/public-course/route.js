@@ -7,6 +7,7 @@ import Skill from "@/models/Skill";
 import { checkAiApiKey } from "@/lib/ai-auth";
 import { corsHeaders, handleOptions } from "@/lib/cors";
 import { dispatchWebhook } from "@/lib/webhook";
+import { shapePublicCourseForExternal } from "@/lib/shapeCourseForExternal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -154,8 +155,10 @@ export async function GET(req) {
       .limit(limit)
       .lean();
 
+    const shaped = items.map(shapePublicCourseForExternal);
+
     const res = NextResponse.json(
-      { ok: true, total, page, limit, items },
+      { ok: true, total, page, limit, items: shaped },
       { status: 200 },
     );
 
@@ -200,9 +203,10 @@ export async function POST(req) {
       })
       .lean();
 
-    dispatchWebhook("course.created", item);
+    const shaped = shapePublicCourseForExternal(item);
+    dispatchWebhook("course.created", shaped);
 
-    const res = NextResponse.json({ ok: true, item }, { status: 201 });
+    const res = NextResponse.json({ ok: true, item: shaped }, { status: 201 });
     return applyCors(req, res);
   } catch (err) {
     console.error("POST /api/ai/public-course error:", err);

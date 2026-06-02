@@ -9,6 +9,20 @@ const TrainingTopicSchema = new Schema(
   { _id: false }
 );
 
+/** Sub schema: Course Outline (English) — external link OR file stored in MSDB (GridFS) */
+const CourseOutlineSchema = new Schema(
+  {
+    kind: { type: String, enum: ["", "link", "file"], default: "" }, // "" = none
+    url: { type: String, default: "" }, // used when kind === "link"
+    file_id: { type: Schema.Types.ObjectId, default: null }, // GridFS file id when kind === "file"
+    filename: { type: String, default: "" },
+    content_type: { type: String, default: "" },
+    size: { type: Number, default: 0 },
+    uploaded_at: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
 const PublicCourseSchema = new Schema(
   {
     // basics
@@ -22,6 +36,9 @@ const PublicCourseSchema = new Schema(
     course_price: { type: Number, default: 0 },
     course_netprice: { type: Number, default: null },
     course_cover_url: { type: String, default: "" },
+    // roadmap images (svg/png/jpg) — desktop & mobile variants
+    course_roadmap_desktop_url: { type: String, default: "" },
+    course_roadmap_mobile_url: { type: String, default: "" },
     course_levels: { type: String, default: "1" }, // "1".."4"
 
     // flags
@@ -48,11 +65,14 @@ const PublicCourseSchema = new Schema(
     training_topics: { type: [TrainingTopicSchema], default: [] },
 
     // resources / urls
-    course_doc_paths: { type: [String], default: [] },
     course_lab_paths: { type: [String], default: [] },
     course_case_study_paths: { type: [String], default: [] },
     website_urls: { type: [String], default: [] },
     exam_links: { type: [String], default: [] },
+
+    // Course outline: external link OR file stored in MSDB (GridFS) — EN & TH
+    course_outline_en: { type: CourseOutlineSchema, default: () => ({}) },
+    course_outline_th: { type: CourseOutlineSchema, default: () => ({}) },
 
     // optional link to previous course
     previous_course: {

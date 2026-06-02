@@ -13,14 +13,20 @@ cloudinary.config({
 
 export default cloudinary;
 
-/** อัปโหลดจากไฟล์ (Blob) ของ formData */
-export async function uploadFromFormFile(file, { folder = "courses" } = {}) {
+/** อัปโหลดจากไฟล์ (Blob) ของ formData
+ *  resourceType "auto" ให้ Cloudinary ตรวจชนิดเอง รองรับ SVG/PNG/JPG ได้ครบ
+ *  (บางบัญชี reject SVG ถ้า hardcode "image")
+ */
+export async function uploadFromFormFile(
+  file,
+  { folder = "courses", resourceType = "auto" } = {}
+) {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder, resource_type: "image" },
+      { folder, resource_type: resourceType },
       (err, result) => (err ? reject(err) : resolve(result))
     );
     stream.end(buffer);

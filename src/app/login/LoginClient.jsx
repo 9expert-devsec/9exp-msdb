@@ -94,7 +94,7 @@ export default function LoginClient({ nextPath = "/admin/dashboard" }) {
   }
 
   const inputBase =
-    "w-full rounded-xl bg-white/5 px-3 py-2 ring-1 focus:outline-none transition-shadow";
+    "w-full rounded-xl bg-white/10 px-3 py-2 ring-1 focus:outline-none transition-shadow text-white placeholder:text-slate-400 caret-white";
   const okRing = "ring-white/10 focus:ring-emerald-400/40";
   const errRing =
     "ring-red-500/50 focus:ring-red-400/50 shadow-[0_0_0_3px_rgba(248,113,113,0.25)]";
@@ -126,8 +126,8 @@ export default function LoginClient({ nextPath = "/admin/dashboard" }) {
               {/* Header */}
               <div className="flex items-start gap-4">
                 <div className="relative">
-                  <div className="absolute inset-0 rounded-2xl bg-emerald-400/20 blur-xl" />
-                  <div className="relative h-14 w-14 rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden flex items-center justify-center">
+                  <div className="absolute inset-1 rounded-2xl bg-emerald-400/25 blur-lg" />
+                  <div className="relative h-14 w-14 rounded-2xl bg-slate-800/80 ring-1 ring-white/15 overflow-hidden flex items-center justify-center">
                     <img
                       src="/logo-9x.png"
                       alt="9Expert logo"

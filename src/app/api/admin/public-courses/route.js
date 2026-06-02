@@ -7,10 +7,11 @@ import "@/models/Skill";
 import { requireRole } from "@/lib/requireRole";
 import { withRateLimit } from "@/lib/ratelimit";
 import { dispatchWebhook } from "@/lib/webhook";
+import { shapePublicCourseForExternal } from "@/lib/shapeCourseForExternal";
 import { z } from "zod";
 
 /* ---------- helpers ---------- */
-const cleanArray = (a) =>
+export const cleanArray = (a) =>
   Array.isArray(a)
     ? a.map((s) => String(s).trim()).filter(Boolean)
     : typeof a === "string"
@@ -20,7 +21,7 @@ const cleanArray = (a) =>
         .filter(Boolean)
     : [];
 
-const toInt = (v, d = 0) => {
+export const toInt = (v, d = 0) => {
   const n = parseInt(v, 10);
   return Number.isFinite(n) ? n : d;
 };
@@ -32,6 +33,19 @@ const normalizeNumber = (v, nullable = false) => {
   return n;
 };
 
+/* ทำความสะอาด course_outline_en:
+ *  - file_id "" -> null กัน Mongoose ObjectId cast error
+ *  - เมื่อ kind !== "file" ให้ล้าง file_id เป็น null (ไม่ผูกไฟล์)
+ *  - คืน undefined ถ้า input ไม่ใช่ object (จะได้ไม่ถูกเขียนทับใน partial update)
+ */
+export const normalizeOutline = (o) => {
+  if (o == null || typeof o !== "object") return o;
+  const out = { ...o };
+  if (out.file_id === "" || out.file_id === undefined) out.file_id = null;
+  if (out.kind !== "file") out.file_id = null;
+  return out;
+};
+
 /* ---------- Zod schema ตาม PublicCourse ---------- */
 
 const TopicSchema = z.object({
@@ -39,7 +53,21 @@ const TopicSchema = z.object({
   bullets: z.array(z.string()).optional().default([]),
 });
 
-const PublicCourseSchema = z
+/* Course outline (link OR MSDB GridFS file) — shared by EN & TH */
+const CourseOutlineZod = z
+  .object({
+    kind: z.enum(["", "link", "file"]).optional().default(""),
+    url: z.string().optional().default(""),
+    // GridFS id arrives as a 24-char string (or null/"" when not a file)
+    file_id: z.union([z.string(), z.null()]).optional().nullable(),
+    filename: z.string().optional().default(""),
+    content_type: z.string().optional().default(""),
+    size: z.coerce.number().optional().default(0),
+    uploaded_at: z.union([z.coerce.date(), z.null()]).optional().nullable(),
+  })
+  .optional();
+
+export const PublicCourseSchema = z
   .object({
     course_id: z.string().min(1),
     course_name: z.string().min(1),
@@ -55,6 +83,8 @@ const PublicCourseSchema = z
       .nullable()
       .transform((v) => (v === undefined ? null : v)),
     course_cover_url: z.string().optional().default(""),
+    course_roadmap_desktop_url: z.string().optional().default(""),
+    course_roadmap_mobile_url: z.string().optional().default(""),
     course_levels: z.string().optional().default("1"),
 
     // flags
@@ -91,11 +121,14 @@ const PublicCourseSchema = z
       ),
 
     // เอกสาร / URL
-    course_doc_paths: z.array(z.string()).optional().default([]),
     course_lab_paths: z.array(z.string()).optional().default([]),
     course_case_study_paths: z.array(z.string()).optional().default([]),
     website_urls: z.array(z.string()).optional().default([]),
     exam_links: z.array(z.string()).optional().default([]),
+
+    // Course outline: external link OR file stored in MSDB (GridFS) — EN & TH
+    course_outline_en: CourseOutlineZod,
+    course_outline_th: CourseOutlineZod,
 
     // previous course (ObjectId ใน DB, รับเป็น string id)
     previous_course: z.string().nullable().optional(),
@@ -132,11 +165,14 @@ export const POST = withRateLimit({ points: 10, duration: 60 })(async (req) => {
       json.course_system_requirements
     );
 
-    json.course_doc_paths = cleanArray(json.course_doc_paths);
     json.course_lab_paths = cleanArray(json.course_lab_paths);
     json.course_case_study_paths = cleanArray(json.course_case_study_paths);
     json.website_urls = cleanArray(json.website_urls);
     json.exam_links = cleanArray(json.exam_links);
+
+    // course_outline_en/th: กัน cast error ของ file_id เมื่อไม่ใช่ไฟล์
+    json.course_outline_en = normalizeOutline(json.course_outline_en);
+    json.course_outline_th = normalizeOutline(json.course_outline_th);
 
     // ❗ ถ้า previous_course ว่าง ให้ลบ field ทิ้งกัน cast error
     if (json.previous_course === "" || json.previous_course === undefined) {
@@ -156,9 +192,10 @@ export const POST = withRateLimit({ points: 10, duration: 60 })(async (req) => {
       .populate("related_courses", "course_id course_name")
       .lean();
 
-    dispatchWebhook("course.created", item);
+    const shaped = shapePublicCourseForExternal(item);
+    dispatchWebhook("course.created", shaped);
 
-    return NextResponse.json({ ok: true, item }, { status: 201 });
+    return NextResponse.json({ ok: true, item: shaped }, { status: 201 });
   } catch (e) {
     if (e instanceof Response) return e;
     console.error("Create PublicCourse error:", e);
@@ -175,26 +212,44 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(async (req) => 
 
     const json = await req.json();
 
-    // แปลง text -> array
-    json.course_objectives = cleanArray(json.course_objectives);
-    json.course_target_audience = cleanArray(json.course_target_audience);
-    json.course_prerequisites = cleanArray(json.course_prerequisites);
-    json.course_system_requirements = cleanArray(
-      json.course_system_requirements
-    );
+    // Capture which keys the client ACTUALLY sent, BEFORE any mutation.
+    // This is what makes the PATCH a true partial update and prevents
+    // omitted fields from being fabricated as [] / null and wiping data.
+    const providedKeys = new Set(Object.keys(json));
+    const normalized = { ...json };
 
-    json.course_doc_paths = cleanArray(json.course_doc_paths);
-    json.course_lab_paths = cleanArray(json.course_lab_paths);
-    json.course_case_study_paths = cleanArray(json.course_case_study_paths);
-    json.website_urls = cleanArray(json.website_urls);
-    json.exam_links = cleanArray(json.exam_links);
-
-    // "" -> null สำหรับ previous_course
-    if (json.previous_course === "" || json.previous_course === undefined) {
-      json.previous_course = null;
+    // Only normalize array fields that were actually provided.
+    const ARRAY_FIELDS = [
+      "course_objectives",
+      "course_target_audience",
+      "course_prerequisites",
+      "course_system_requirements",
+      "course_lab_paths",
+      "course_case_study_paths",
+      "website_urls",
+      "exam_links",
+    ];
+    for (const key of ARRAY_FIELDS) {
+      if (providedKeys.has(key)) {
+        normalized[key] = cleanArray(normalized[key]);
+      }
     }
 
-    const id = String(json?._id || "").trim();
+    // Normalize outline objects only when actually sent (keeps file_id a valid
+    // ObjectId/null so it never throws a cast error).
+    for (const key of ["course_outline_en", "course_outline_th"]) {
+      if (providedKeys.has(key)) {
+        normalized[key] = normalizeOutline(normalized[key]);
+      }
+    }
+
+    // Only coerce previous_course "" -> null when the key was actually sent.
+    // If omitted, leave it untouched (do NOT add or null it).
+    if (providedKeys.has("previous_course") && normalized.previous_course === "") {
+      normalized.previous_course = null;
+    }
+
+    const id = String(normalized?._id || "").trim();
     if (!id) {
       return NextResponse.json(
         { ok: false, error: "_id is required" },
@@ -202,7 +257,18 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(async (req) => 
       );
     }
 
-    const updates = PublicCourseSchema.partial().parse(json);
+    const parsed = PublicCourseSchema.partial().parse(normalized);
+
+    // CRITICAL: Zod fills .default() values for fields the client never sent.
+    // A partial update must contain ONLY the keys actually provided in the
+    // request body, otherwise findByIdAndUpdate overwrites real data with
+    // empty defaults (skills:[], course_price:0, ...). Rebuild `updates` from
+    // providedKeys so Zod-injected defaults are dropped.
+    const updates = {};
+    for (const key of providedKeys) {
+      if (key === "_id") continue;
+      if (key in parsed) updates[key] = parsed[key];
+    }
 
     const item = await PublicCourse.findByIdAndUpdate(id, updates, {
       new: true,
@@ -220,9 +286,10 @@ export const PATCH = withRateLimit({ points: 20, duration: 60 })(async (req) => 
       );
     }
 
-    dispatchWebhook("course.updated", item);
+    const shaped = shapePublicCourseForExternal(item);
+    dispatchWebhook("course.updated", shaped);
 
-    return NextResponse.json({ ok: true, item }, { status: 200 });
+    return NextResponse.json({ ok: true, item: shaped }, { status: 200 });
   } catch (e) {
     if (e instanceof Response) return e;
     const msg = e?.errors?.[0]?.message || e?.message || "Update failed";

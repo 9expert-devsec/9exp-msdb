@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import PublicCourse from "@/models/PublicCourse";
+import { shapePublicCourseForExternal } from "@/lib/shapeCourseForExternal";
 
 const cleanArray = (a) =>
   Array.isArray(a) ? a.map((s) => String(s).trim()).filter(Boolean) : [];
@@ -30,7 +31,7 @@ export async function GET(req, { params }) {
     if (!item) {
       return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
     }
-    return NextResponse.json({ ok: true, item });
+    return NextResponse.json({ ok: true, item: shapePublicCourseForExternal(item) });
   } catch (e) {
     return NextResponse.json(
       { ok: false, error: e.message || "Internal error" },
@@ -54,7 +55,6 @@ export async function PATCH(req, { params }) {
     if ("course_system_requirements" in payload)
       payload.course_system_requirements = cleanArray(payload.course_system_requirements);
     if ("training_topics" in payload) payload.training_topics = cleanTopics(payload.training_topics);
-    if ("course_doc_paths" in payload) payload.course_doc_paths = cleanArray(payload.course_doc_paths);
     if ("course_lab_paths" in payload) payload.course_lab_paths = cleanArray(payload.course_lab_paths);
     if ("course_case_study_paths" in payload)
       payload.course_case_study_paths = cleanArray(payload.course_case_study_paths);
@@ -82,7 +82,7 @@ export async function PATCH(req, { params }) {
     if (!item) {
       return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
     }
-    return NextResponse.json({ ok: true, item });
+    return NextResponse.json({ ok: true, item: shapePublicCourseForExternal(item) });
   } catch (e) {
     return NextResponse.json(
       { ok: false, error: e.message || "Update failed" },

@@ -224,7 +224,6 @@ add(f12, "PublicCourse", "course_system_requirements", "Array<String>", false, "
 add(f12, "PublicCourse", "training_topics", "Array<TrainingTopic>", false, "Training topics with sub-bullets");
 add(f12, "PublicCourse", "training_topics.title", "String", false, "Topic title");
 add(f12, "PublicCourse", "training_topics.bullets", "Array<String>", false, "Sub-bullet points");
-add(f12, "PublicCourse", "course_doc_paths", "Array<String>", false, "Document paths");
 add(f12, "PublicCourse", "course_lab_paths", "Array<String>", false, "Lab paths");
 add(f12, "PublicCourse", "course_case_study_paths", "Array<String>", false, "Case study paths");
 add(f12, "PublicCourse", "website_urls", "Array<String>", false, "Related website URLs");

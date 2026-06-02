@@ -7,6 +7,7 @@ import "@/models/Skill";
 
 import { withCors } from "@/lib/cors";
 import { withRateLimit } from "@/lib/ratelimit";
+import { shapePublicCourseForExternal } from "@/lib/shapeCourseForExternal";
 // ตอนนี้ GET ยังไม่ requireRole ถ้าอยากล็อกเฉพาะหลังบ้านค่อยเพิ่มทีหลัง
 // import { requireRole } from "@/lib/requireRole";
 
@@ -65,8 +66,10 @@ export const GET = withCors(
         .limit(limit)
         .lean();
 
+      const shaped = items.map(shapePublicCourseForExternal);
+
       return NextResponse.json(
-        { ok: true, total, page, limit, items },
+        { ok: true, total, page, limit, items: shaped },
         { status: 200 }
       );
     } catch (e) {

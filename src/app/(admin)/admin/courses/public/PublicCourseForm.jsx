@@ -10,6 +10,35 @@ const LEVELS = [
   { value: "4", label: "4 (Expert)" },
 ];
 
+/* empty shape for a course outline field (shared by EN & TH) */
+const EMPTY_OUTLINE = {
+  kind: "",
+  url: "",
+  file_id: null,
+  filename: "",
+  content_type: "",
+  size: 0,
+  uploaded_at: null,
+};
+
+/* normalize a stored outline into the form shape (file_id as string) */
+const loadOutline = (o) => ({
+  ...EMPTY_OUTLINE,
+  ...(o || {}),
+  file_id: o?.file_id ? String(o.file_id) : null,
+});
+
+/* build the outline payload sent to the API (full object, safe defaults) */
+const serializeOutline = (o) => ({
+  kind: o?.kind || "",
+  url: o?.url || "",
+  file_id: o?.file_id || null,
+  filename: o?.filename || "",
+  content_type: o?.content_type || "",
+  size: o?.size || 0,
+  uploaded_at: o?.uploaded_at || null,
+});
+
 const DEFAULT = {
   course_id: "",
   course_name: "",
@@ -19,6 +48,8 @@ const DEFAULT = {
   course_price: 0,
   course_netprice: null,
   course_cover_url: "",
+  course_roadmap_desktop_url: "",
+  course_roadmap_mobile_url: "",
   course_levels: "1",
   course_type_public: true,
   course_type_inhouse: false,
@@ -39,11 +70,14 @@ const DEFAULT = {
   training_topics: [], // [{ title:'หัวข้อ', bullets:['ย่อย1','ย่อย2'] }]
 
   // paths/URLs (เก็บเป็น array ของ string)
-  course_doc_paths: [],
   course_lab_paths: [],
   course_case_study_paths: [],
   website_urls: [],
   exam_links: [],
+
+  // Course outline: external link OR file stored in MSDB (GridFS) — EN & TH
+  course_outline_en: { ...EMPTY_OUTLINE },
+  course_outline_th: { ...EMPTY_OUTLINE },
 
   previous_course: "",
   related_courses: [],
@@ -72,6 +106,266 @@ const BulletHint = ({ title }) => (
     • {title}: <b>1 บรรทัด = 1 bullet</b> (กด Enter เพื่อขึ้นบรรทัดใหม่)
   </div>
 );
+
+/* human-readable file size */
+const formatBytes = (bytes) => {
+  const n = Number(bytes) || 0;
+  if (n <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.min(Math.floor(Math.log(n) / Math.log(1024)), units.length - 1);
+  return `${(n / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+};
+
+/* ---------- Roadmap image field (upload to Cloudinary OR paste URL) ---------- */
+function RoadmapImageField({ label, value, uploading, onUpload, onChangeUrl, onClear }) {
+  return (
+    <div className="rounded-lg bg-white/5 ring-1 ring-white/10 p-3 space-y-2">
+      <FieldLabel hint={uploading ? "กำลังอัปโหลด..." : "SVG / PNG / JPG"}>
+        {label}
+      </FieldLabel>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="cursor-pointer rounded-lg px-3 py-2 bg-white/10 hover:bg-white/20 ring-1 ring-white/10 text-sm">
+          <input
+            type="file"
+            accept="image/svg+xml,image/png,image/jpeg"
+            className="hidden"
+            onChange={(e) => onUpload(e.target.files?.[0])}
+          />
+          {value ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
+        </label>
+
+        {value && (
+          <>
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-sm px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+            >
+              ลบรูป
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                await navigator.clipboard.writeText(value || "");
+                alert("Copied!");
+              }}
+              className="text-sm px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+            >
+              Copy URL
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* paste / edit the URL directly */}
+      <input
+        className="w-full rounded-xl bg-white/5 border border-white/10 ring-1 ring-white/10 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+        placeholder="วาง URL / path ของรูปได้โดยตรง (เช่น https://.../roadmap.svg)"
+        value={value || ""}
+        onChange={(e) => onChangeUrl(e.target.value)}
+      />
+
+      {/* inline preview (works for svg/png/jpg) */}
+      {value ? (
+        <img
+          src={value}
+          alt={label}
+          className="max-h-40 w-auto rounded-md object-contain bg-white/5 ring-1 ring-white/15 p-1"
+        />
+      ) : (
+        <div className="text-xs text-slate-400">ยังไม่มีรูป</div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Course Outline field (Link OR Upload-to-MSDB), reusable EN/TH ---------- */
+function CourseOutlineField({ label, value, onChange }) {
+  const outline = value || EMPTY_OUTLINE;
+  const isFile = outline.kind === "file" && outline.file_id;
+  const isPdf =
+    outline.content_type === "application/pdf" ||
+    /\.pdf$/i.test(outline.filename || "");
+  const outlineUrl = isFile
+    ? `/api/public-courses/outline/${outline.file_id}`
+    : "";
+
+  const [uploading, setUploading] = useState(false);
+  const [mode, setMode] = useState(outline.kind === "file" ? "file" : "link");
+
+  // reflect the loaded/changed kind in the visible mode (won't fight the user:
+  // only fires when kind itself becomes "file"/"link")
+  useEffect(() => {
+    if (outline.kind === "file" || outline.kind === "link") setMode(outline.kind);
+  }, [outline.kind]);
+
+  const uploadFile = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/public-courses/outline", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Upload failed");
+      }
+      onChange({
+        kind: "file",
+        url: "",
+        file_id: data.file_id,
+        filename: data.filename || file.name || "",
+        content_type: data.content_type || file.type || "",
+        size: data.size || file.size || 0,
+        uploaded_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      alert("Outline upload failed: " + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const clear = () => onChange({ ...EMPTY_OUTLINE });
+  const setLink = (url) =>
+    onChange({ ...EMPTY_OUTLINE, kind: url ? "link" : "", url });
+
+  return (
+    <div className="rounded-lg bg-white/5 ring-1 ring-white/10 p-3 space-y-3">
+      <div className="text-sm font-semibold text-slate-100">{label}</div>
+
+      {/* mode toggle */}
+      <div className="inline-flex rounded-lg bg-white/5 ring-1 ring-white/10 p-1 text-sm">
+        <button
+          type="button"
+          onClick={() => setMode("link")}
+          className={`px-3 py-1.5 rounded-md ${
+            mode === "link"
+              ? "bg-emerald-600 text-white"
+              : "text-slate-300 hover:bg-white/10"
+          }`}
+        >
+          Link
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("file")}
+          className={`px-3 py-1.5 rounded-md ${
+            mode === "file"
+              ? "bg-emerald-600 text-white"
+              : "text-slate-300 hover:bg-white/10"
+          }`}
+        >
+          Upload to MSDB
+        </button>
+      </div>
+
+      {/* LINK mode */}
+      {mode === "link" && (
+        <div>
+          <FieldLabel hint="ลิงก์ภายนอก (เช่น Google Drive / เว็บไซต์)">
+            Outline Link (URL)
+          </FieldLabel>
+          <input
+            className="input"
+            placeholder="https://..."
+            value={outline.kind === "link" ? outline.url : ""}
+            onChange={(e) => setLink(e.target.value)}
+          />
+        </div>
+      )}
+
+      {/* FILE mode */}
+      {mode === "file" && (
+        <div>
+          <FieldLabel
+            hint={uploading ? "กำลังอัปโหลด..." : "PDF / DOC / DOCX / TXT (≤ 20MB)"}
+          >
+            Upload Outline File (stored in MSDB)
+          </FieldLabel>
+          <label className="inline-block cursor-pointer rounded-lg px-3 py-2 bg-white/10 hover:bg-white/20 ring-1 ring-white/10 text-sm">
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+              className="hidden"
+              onChange={(e) => uploadFile(e.target.files?.[0])}
+            />
+            {isFile ? "เปลี่ยนไฟล์" : "เลือกไฟล์"}
+          </label>
+        </div>
+      )}
+
+      {/* ---- preview / current state ---- */}
+      {/* file kind */}
+      {isFile && (
+        <div className="rounded-lg bg-white/5 ring-1 ring-white/10 p-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium text-slate-100 truncate">
+              {outline.filename || "outline"}
+            </span>
+            <span className="text-xs text-slate-400">
+              {formatBytes(outline.size)}
+            </span>
+            <a
+              href={outlineUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20"
+            >
+              Open in new tab
+            </a>
+            <button
+              type="button"
+              onClick={clear}
+              className="text-xs px-2.5 py-1 rounded-lg bg-red-500/80 hover:bg-red-500"
+            >
+              Remove
+            </button>
+          </div>
+
+          {isPdf ? (
+            <iframe
+              src={outlineUrl}
+              title={`${label} preview`}
+              className="w-full h-[480px] rounded-xl ring-1 ring-white/10 bg-white"
+            />
+          ) : (
+            <div className="text-xs text-slate-400">
+              แสดงตัวอย่างแบบฝังในหน้าได้เฉพาะไฟล์ PDF — ไฟล์ชนิดนี้กรุณาใช้ปุ่ม “Open in new tab”
+              เพื่อเปิด/ดาวน์โหลด
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* link kind */}
+      {outline.kind === "link" && outline.url && (
+        <div className="rounded-lg bg-white/5 ring-1 ring-white/10 p-3 flex flex-wrap items-center gap-2 text-sm">
+          <span className="truncate text-slate-200">{outline.url}</span>
+          <a
+            href={outline.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20"
+          >
+            Open in new tab
+          </a>
+          <button
+            type="button"
+            onClick={clear}
+            className="text-xs px-2.5 py-1 rounded-lg bg-red-500/80 hover:bg-red-500"
+          >
+            Remove
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ---------- editor: training topics (with sub-bullets) ---------- */
 function TopicsEditor({ value = [], onChange }) {
@@ -298,11 +592,17 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
           )
         : [],
 
-      course_doc_paths: item.course_doc_paths || [],
       course_lab_paths: item.course_lab_paths || [],
       course_case_study_paths: item.course_case_study_paths || [],
       website_urls: item.website_urls || [],
       exam_links: item.exam_links || [],
+
+      course_roadmap_desktop_url: item.course_roadmap_desktop_url || "",
+      course_roadmap_mobile_url: item.course_roadmap_mobile_url || "",
+
+      // outlines: merge defaults; keep file_id as a string for the form
+      course_outline_en: loadOutline(item.course_outline_en),
+      course_outline_th: loadOutline(item.course_outline_th),
 
       program: item?.program?._id || item?.program || "",
       skills: Array.isArray(item?.skills)
@@ -375,6 +675,25 @@ export default function PublicCourseForm({ item = {}, onSaved }) {
     }
   };
 
+  // generic image uploader -> writes data.url into `field`
+  const onUploadImage = async (file, field, folder = "courses/roadmap") => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", folder);
+      const res = await fetch("/api/uploads", { method: "POST", body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      set(field, data.url);
+    } catch (e) {
+      alert("Upload failed: " + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   /* ---------- submit ---------- */
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -417,12 +736,19 @@ const payload = {
       .filter(Boolean),
   })),
 
+  // roadmap images
+  course_roadmap_desktop_url: form.course_roadmap_desktop_url || "",
+  course_roadmap_mobile_url: form.course_roadmap_mobile_url || "",
+
   // URLs (ปล่อยเป็น array ของ string ดิบ ๆ)
-  course_doc_paths: cleanArray(form.course_doc_paths),
   course_lab_paths: cleanArray(form.course_lab_paths),
   course_case_study_paths: cleanArray(form.course_case_study_paths),
   website_urls: cleanArray(form.website_urls),
   exam_links: cleanArray(form.exam_links),
+
+  // Course outlines (link OR MSDB file) — EN & TH
+  course_outline_en: serializeOutline(form.course_outline_en),
+  course_outline_th: serializeOutline(form.course_outline_th),
 
   // relations
   program: form.program || null,
@@ -679,6 +1005,30 @@ const payload = {
             </div>
           </div>
         </div>
+
+        {/* Roadmap images (desktop + mobile) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <RoadmapImageField
+            label="Roadmap (Desktop)"
+            value={form.course_roadmap_desktop_url}
+            uploading={uploading}
+            onUpload={(file) =>
+              onUploadImage(file, "course_roadmap_desktop_url", "courses/roadmap")
+            }
+            onChangeUrl={(v) => set("course_roadmap_desktop_url", v)}
+            onClear={() => set("course_roadmap_desktop_url", "")}
+          />
+          <RoadmapImageField
+            label="Roadmap (Mobile)"
+            value={form.course_roadmap_mobile_url}
+            uploading={uploading}
+            onUpload={(file) =>
+              onUploadImage(file, "course_roadmap_mobile_url", "courses/roadmap")
+            }
+            onChangeUrl={(v) => set("course_roadmap_mobile_url", v)}
+            onClear={() => set("course_roadmap_mobile_url", "")}
+          />
+        </div>
       </Section>
 
       {/* Flags */}
@@ -883,11 +1233,6 @@ const payload = {
       <Section title="เอกสาร/ลิงก์ประกอบ (URL)">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <ArrayTextarea
-            label="Doc Paths"
-            value={form.course_doc_paths}
-            onChange={(v) => set("course_doc_paths", v)}
-          />
-          <ArrayTextarea
             label="Lab Paths"
             value={form.course_lab_paths}
             onChange={(v) => set("course_lab_paths", v)}
@@ -906,6 +1251,25 @@ const payload = {
             label="Exam Links"
             value={form.exam_links}
             onChange={(v) => set("exam_links", v)}
+          />
+        </div>
+      </Section>
+
+      {/* Course Outline (EN + TH) */}
+      <Section
+        title="Course Outline"
+        desc="ใส่เป็นลิงก์ภายนอก หรืออัปโหลดไฟล์เก็บไว้ใน MSDB (PDF/DOC/DOCX/TXT). เลือกอย่างใดอย่างหนึ่งต่อภาษา"
+      >
+        <div className="grid grid-cols-1 gap-3">
+          <CourseOutlineField
+            label="Course Outline (ภาษาไทย)"
+            value={form.course_outline_th}
+            onChange={(v) => set("course_outline_th", v)}
+          />
+          <CourseOutlineField
+            label="Course Outline (English)"
+            value={form.course_outline_en}
+            onChange={(v) => set("course_outline_en", v)}
           />
         </div>
       </Section>

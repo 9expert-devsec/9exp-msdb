@@ -50,12 +50,6 @@ function CopyMenu({ item }) {
           </button>
           <button
             className="mitem"
-            onClick={() => doCopy(join(item.course_doc_paths))}
-          >
-            Doc Paths
-          </button>
-          <button
-            className="mitem"
             onClick={() => doCopy(join(item.course_lab_paths))}
           >
             Lab Paths
