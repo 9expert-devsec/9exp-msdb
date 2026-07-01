@@ -234,7 +234,7 @@ function RelatedCoursePicker({ selected = [], onChange, allCourses = [], max = 5
       </div>
 
       <input
-        className="input"
+        className={INPUT_CLS}
         placeholder="Search by name or ID..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
