@@ -1,6 +1,17 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 
+/* ---------- shared field classes ----------
+ * Global Tailwind utilities (NOT styled-jsx). styled-jsx `.input`/`.textarea`
+ * scope to the component that declares <style jsx> and DO NOT reach fields
+ * rendered by extracted child components (TopicsEditor, CourseOutlineField,
+ * RelatedCoursePicker, ...). These constants style those fields reliably
+ * regardless of component boundaries. `block w-full` makes width authoritative;
+ * `resize-y` keeps vertical-only resizing so no inline width is ever written. */
+const INPUT_CLS =
+  "block w-full rounded-xl bg-white/[0.06] border border-white/[0.18] px-3 py-2.5 text-slate-200 outline-none transition focus:border-emerald-500/55 focus:ring-2 focus:ring-emerald-500/25";
+const TEXTAREA_CLS = INPUT_CLS + " resize-y leading-relaxed min-h-[96px]";
+
 /* ---------- constants ---------- */
 const LEVELS = [
   { value: "1", label: "1 (Beginner)" },
@@ -100,7 +111,7 @@ function TopicsEditor({ value = [], onChange }) {
       {(value || []).map((t, i) => (
         <div
           key={i}
-          className="rounded-lg bg-white/5 ring-1 ring-white/10 p-3 space-y-2"
+          className="w-full rounded-lg bg-white/5 ring-1 ring-white/10 p-3 space-y-2"
         >
           <div className="flex items-center gap-2">
             <FieldLabel>หัวข้อที่ {i + 1}</FieldLabel>
@@ -113,15 +124,16 @@ function TopicsEditor({ value = [], onChange }) {
             </button>
           </div>
           <input
-            className="input"
+            className={INPUT_CLS}
             placeholder="Topic title..."
             value={t?.title || ""}
             onChange={(e) => setTopicTitle(i, e.target.value)}
           />
-          <div>
+          <div className="w-full">
             <FieldLabel hint="1 บรรทัด = 1 ย่อย">หัวข้อย่อย</FieldLabel>
             <textarea
-              className="textarea min-h-[100px]"
+              className={`${TEXTAREA_CLS} min-h-[200px]`}
+              rows={8}
               placeholder="ใส่เป็นบรรทัดละ 1 ย่อย"
               value={(t?.bullets || []).join("\n")}
               onChange={(e) => setTopicBullets(i, e.target.value)}
@@ -756,7 +768,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               </span>
             </FieldLabel>
             <textarea
-              className="textarea min-h-[120px]"
+              className="textarea textarea-md"
               placeholder="ใส่ทีละบรรทัด"
               value={form.o_course_objectives}
               onChange={(e) =>
@@ -773,7 +785,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               </span>
             </FieldLabel>
             <textarea
-              className="textarea min-h-[120px]"
+              className="textarea textarea-md"
               placeholder="ใส่ทีละบรรทัด"
               value={form.o_course_target_audience}
               onChange={(e) =>
@@ -790,7 +802,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               </span>
             </FieldLabel>
             <textarea
-              className="textarea min-h-[120px]"
+              className="textarea textarea-md"
               placeholder="ใส่ทีละบรรทัด"
               value={form.o_course_prerequisites}
               onChange={(e) =>
@@ -807,7 +819,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               </span>
             </FieldLabel>
             <textarea
-              className="textarea min-h-[120px]"
+              className="textarea textarea-md"
               placeholder="ใส่ทีละบรรทัด"
               value={form.o_course_system_requirements}
               onChange={(e) =>
@@ -844,7 +856,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               </span>
             </FieldLabel>
             <textarea
-              className="textarea min-h-[120px]"
+              className="textarea textarea-md"
               placeholder="https://.../doc1.pdf\nhttps://.../doc2.pdf"
               value={form.o_course_doc_paths}
               onChange={(e) =>
@@ -860,7 +872,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               </span>
             </FieldLabel>
             <textarea
-              className="textarea min-h-[120px]"
+              className="textarea textarea-md"
               placeholder="https://.../lab1.zip\nhttps://.../lab2.zip"
               value={form.o_course_lab_paths}
               onChange={(e) =>
@@ -876,7 +888,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               </span>
             </FieldLabel>
             <textarea
-              className="textarea min-h-[120px]"
+              className="textarea textarea-md"
               placeholder="https://.../case1\nhttps://.../case2"
               value={form.o_course_case_study_paths}
               onChange={(e) =>
@@ -892,7 +904,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               </span>
             </FieldLabel>
             <textarea
-              className="textarea min-h-[120px]"
+              className="textarea textarea-md"
               placeholder="https://.../site1\nhttps://.../site2"
               value={form.website_urls}
               onChange={(e) => set("website_urls", e.target.value)}
@@ -906,7 +918,7 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               </span>
             </FieldLabel>
             <textarea
-              className="textarea min-h-[120px]"
+              className="textarea textarea-md"
               placeholder="https://.../exam1\nhttps://.../exam2"
               value={form.exam_links}
               onChange={(e) => set("exam_links", e.target.value)}
@@ -949,11 +961,30 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
           padding: 0.625rem 0.75rem;
         }
         .textarea {
+          display: block;
           width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
           background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.18);
           border-radius: 0.75rem;
           padding: 0.625rem 0.75rem;
+          color: #e5e7eb;
+          outline: none;
+          min-height: 96px;
+          resize: vertical;
+          line-height: 1.6;
+          transition: box-shadow 120ms, border-color 120ms;
+        }
+        .textarea-md {
+          min-height: 120px;
+        }
+        .textarea-tall {
+          min-height: 200px;
+        }
+        .textarea:focus {
+          border-color: rgba(16, 185, 129, 0.55);
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
         }
         .chk {
           display: flex;
