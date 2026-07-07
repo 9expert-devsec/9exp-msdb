@@ -32,6 +32,7 @@ import {
   HiOutlineMoon,
   HiOutlineBoltSlash,
   HiOutlineSignal,
+  HiOutlineTv,
 } from "react-icons/hi2";
 
 export const dynamic = "force-dynamic";
@@ -474,6 +475,13 @@ export default function AdminLayout({ children }) {
               href="/admin/instructors"
               icon={HiOutlineUserGroup}
               label="Instructor"
+              sidebarOpen={sidebarOpen}
+              isDark={isDark}
+            />
+            <NavItem
+              href="/admin/break-screen"
+              icon={HiOutlineTv}
+              label="Break Screen"
               sidebarOpen={sidebarOpen}
               isDark={isDark}
             />
