@@ -59,4 +59,64 @@ export const BREAK_SCREEN_COURSE_SELECT =
   "course_netprice course_price course_traininghours course_trainingdays " +
   "course_promote_status program sort_order";
 
+// ── Pure, dependency-free helpers (safe in both server + browser bundles) ────
+// This module must NOT import mongoose so the client can reuse these.
+
+/**
+ * Truncate to N "characters" by code point. Array.from() keeps surrogate pairs
+ * (emoji) intact. LIMITATION: it does not keep multi-codepoint grapheme
+ * clusters together — a Thai base char + combining vowel/tone mark can still be
+ * split if the cut lands between them. Acceptable per spec.
+ */
+export function truncateGraphemes(str, n) {
+  if (!n || n <= 0) return String(str || "");
+  const chars = Array.from(String(str || ""));
+  return chars.length <= n ? chars.join("") : chars.slice(0, n).join("");
+}
+
+/**
+ * Turn a stored/raw profile into the partial-config the break screen consumes:
+ *   { label, courses:[{badge,title,meta,desc,img,url}], videos:{mode,same,byDay} }
+ * Strips `sourceCourseId` + any extra keys, applies descMaxLen truncation.
+ * `videos.byDay` must already be a plain object (caller converts a Map first).
+ */
+export function toProfileValue({ label, courses, videos, descMaxLen } = {}) {
+  const max = Number(descMaxLen || 0) || 0;
+  const v = videos && typeof videos === "object" ? videos : {};
+  return {
+    label: label || "",
+    courses: (Array.isArray(courses) ? courses : []).map((c) => ({
+      badge: c.badge || "",
+      title: c.title || "",
+      meta: c.meta || "",
+      desc: max > 0 ? truncateGraphemes(c.desc, max) : c.desc || "",
+      img: c.img || "",
+      url: c.url || "",
+    })),
+    videos: {
+      mode: v.mode === "daily" ? "daily" : "same",
+      same: Array.isArray(v.same) ? v.same : [],
+      byDay: v.byDay && typeof v.byDay === "object" ? v.byDay : {},
+    },
+  };
+}
+
+/**
+ * EXACT replica of the static break screen's `encodeCfg`. Must byte-match so a
+ * #cfg= hash decodes on the static side (which runs mergeCfg(DEFAULTS, parsed)).
+ * Do NOT "improve" — btoa+unescape+encodeURIComponent is the agreed wire format.
+ */
+export function encodeCfg(c) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(c))));
+}
+
+/**
+ * #cfg= hash from a profile value: strip `label` (mirror the static side's
+ * rule) then encode the partial {courses, videos}.
+ */
+export function cfgHash(profileValue) {
+  const { label: _omit, ...partial } = profileValue || {};
+  return encodeCfg(partial);
+}
+
 export default toBreakScreenCourse;
