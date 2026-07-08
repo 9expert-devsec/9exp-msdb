@@ -60,7 +60,7 @@ export default function BreakScreenListPage() {
   }
 
   function courseLink(slug) {
-    return `${BREAK_BASE}/?course=${encodeURIComponent(slug)}`;
+    return `${BREAK_BASE}/${encodeURIComponent(slug)}`;
   }
 
   // #cfg= from the stored snapshot (applies descMaxLen, strips label) — mirrors
@@ -99,8 +99,8 @@ export default function BreakScreenListPage() {
         <div>
           <h1 className="text-xl font-semibold">Break Screen Profiles</h1>
           <p className="text-xs text-[var(--text-tertiary)] mt-1">
-            จัดการโปรไฟล์หน้าจอพักเบรก — แต่ละ slug คือคีย์ของ{" "}
-            <code className="text-[var(--text-secondary)]">?course=&lt;slug&gt;</code>
+            จัดการโปรไฟล์หน้าจอพักเบรก — แต่ละ slug คือคีย์ของลิงก์หลักสูตร{" "}
+            <code className="text-[var(--text-secondary)]">/&lt;slug&gt;</code>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -218,11 +218,11 @@ export default function BreakScreenListPage() {
                         </Link>
                         <button
                           onClick={() =>
-                            copy(courseLink(it.slug), "คัดลอกลิงก์ ?course= แล้ว")
+                            copy(courseLink(it.slug), "คัดลอกลิงก์หลักสูตรแล้ว")
                           }
                           className="rounded-lg bg-sky-500/15 text-sky-400 px-2 py-1 text-[11px] hover:bg-sky-500/25"
                         >
-                          ?course=
+                          /slug
                         </button>
                         <button
                           onClick={() => copy(cfgLink(it), "คัดลอกลิงก์ #cfg= แล้ว")}

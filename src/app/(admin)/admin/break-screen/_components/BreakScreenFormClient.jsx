@@ -317,7 +317,7 @@ export default function BreakScreenFormClient({ initial = null }) {
       const pv = json.profileValue; // server-truncated + label-included
       setResult({
         slug: json.item.slug,
-        courseLink: `${BREAK_BASE}/?course=${encodeURIComponent(json.item.slug)}`,
+        courseLink: `${BREAK_BASE}/${encodeURIComponent(json.item.slug)}`,
         cfgLink: `${BREAK_BASE}/#cfg=${cfgHash(pv)}`,
       });
       // refresh the router cache so the list reflects the change
@@ -656,7 +656,7 @@ export default function BreakScreenFormClient({ initial = null }) {
 
           <div>
             <label className="text-xs font-medium text-[var(--text-secondary)]">
-              Slug (คีย์ของ ?course= )
+              Slug (คีย์ของลิงก์หลักสูตร /&lt;slug&gt;)
             </label>
             <input
               value={slug}
@@ -762,7 +762,7 @@ export default function BreakScreenFormClient({ initial = null }) {
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-sky-400">
-                ?course= (live — ต้อง deploy profiles.json)
+                ลิงก์หลักสูตร (live)
               </span>
               <button
                 type="button"
@@ -779,7 +779,7 @@ export default function BreakScreenFormClient({ initial = null }) {
               className="w-full rounded-xl bg-[var(--surface-glass)] border border-[var(--border-primary)] px-3 py-2 text-[11px] font-mono break-all resize-none"
             />
             <p className="text-[11px] text-[var(--text-muted)]">
-              อย่าลืมดาวน์โหลด/deploy profiles.json ใหม่เพื่อให้ลิงก์ ?course= ใช้งานได้
+              อัปเดตอัตโนมัติจากฐานข้อมูลภายใน ~5 นาที ไม่ต้อง deploy profiles.json อีกต่อไป
             </p>
           </div>
         </section>
