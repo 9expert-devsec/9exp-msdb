@@ -13,6 +13,7 @@ import { corsHeaders, handleOptions } from "@/lib/cors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export const OPTIONS = handleOptions;
 
@@ -22,6 +23,9 @@ export async function GET(req) {
   const authError = checkBreakScreenApiKey(req);
   if (authError) {
     for (const [k, v] of Object.entries(cors)) authError.headers.set(k, v);
+    // Never let an unauthorized response be cached by any intermediary — a cached
+    // 401 would be as wrong as a cached 200 once the handler stops running.
+    authError.headers.set("cache-control", "no-store");
     return authError;
   }
 
@@ -40,11 +44,12 @@ export async function GET(req) {
     const bodyJson = JSON.stringify(map);
     const headers = {
       "content-type": "application/json; charset=utf-8",
-      // Let the break-screen app's ISR own the revalidation cadence, but give
-      // any intermediary/CDN a short shared cache with SWR so a burst of ISR
-      // regenerations doesn't hammer Mongo. The break-screen side sets its own
-      // revalidate; this is a backstop only.
-      "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+      // This is an authenticated endpoint: the x-api-key MUST be validated on
+      // every request, so the response must never be cached by a shared CDN.
+      // A `public`/`s-maxage` policy let the edge serve the first authorized
+      // body to later unauthenticated callers without ever running the handler
+      // (auth bypass). Force every request back to the handler.
+      "cache-control": "no-store",
       ...cors,
     };
 
