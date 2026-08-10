@@ -1,5 +1,6 @@
 // src/app/api/admin/schedules/[id]/route.js
 import dbConnect from "@/lib/mongoose";
+import "@/models/Program";
 import "@/models/PublicCourse";
 import Schedule from "@/models/Schedule";
 import { dispatchWebhook } from "@/lib/webhook";
