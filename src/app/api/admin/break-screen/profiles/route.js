@@ -6,6 +6,7 @@ import BreakScreenProfile from "@/models/BreakScreenProfile";
 import "@/models/Instructor";
 import { requireRole } from "@/lib/requireRole";
 import { normalizeProfilePayload } from "@/lib/breakScreenProfilePayload";
+import { pingBreakScreenRevalidate } from "@/lib/revalidateBreakScreen";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,9 @@ export async function POST(req) {
     }
 
     const created = await BreakScreenProfile.create(payload);
+
+    // Fire-and-forget: refresh the projector now instead of on the next ISR cycle.
+    pingBreakScreenRevalidate(created.slug);
 
     return NextResponse.json(
       {

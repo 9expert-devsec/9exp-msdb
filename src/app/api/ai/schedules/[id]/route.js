@@ -1,6 +1,11 @@
 // src/app/api/ai/schedules/[id]/route.js
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
+
+// สำคัญ: ต้อง register โมเดลที่เกี่ยวข้องก่อนใช้งาน populate
+// (course -> program) มิฉะนั้น process ที่ยังไม่เคยโหลด route อื่นที่ import Program
+// จะ throw MissingSchemaError *หลัง* จาก DB write commit ไปแล้ว
+import "@/models/Program";
 import "@/models/PublicCourse";
 import Schedule from "@/models/Schedule";
 

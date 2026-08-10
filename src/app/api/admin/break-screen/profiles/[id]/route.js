@@ -6,6 +6,7 @@ import BreakScreenProfile from "@/models/BreakScreenProfile";
 import "@/models/Instructor";
 import { requireRole } from "@/lib/requireRole";
 import { normalizeProfilePayload } from "@/lib/breakScreenProfilePayload";
+import { pingBreakScreenRevalidate } from "@/lib/revalidateBreakScreen";
 
 export const dynamic = "force-dynamic";
 
@@ -58,12 +59,22 @@ export async function PUT(req, ctx) {
       }
     }
 
+    // Cheap read of the previous slug BEFORE the write, so a slug change can
+    // purge the OLD path too (findByIdAndUpdate returns only the new doc).
+    const prev = await BreakScreenProfile.findById(id).select("slug").lean();
+
     const item = await BreakScreenProfile.findByIdAndUpdate(id, payload, {
       new: true,
       runValidators: true,
     });
     if (!item) {
       return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+    }
+
+    // Fire-and-forget: revalidate the new path, plus the old one if the slug changed.
+    pingBreakScreenRevalidate(item.slug);
+    if (prev?.slug && prev.slug !== item.slug) {
+      pingBreakScreenRevalidate(prev.slug);
     }
 
     return NextResponse.json({
@@ -108,6 +119,8 @@ export async function DELETE(req, ctx) {
       if (!gone) {
         return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
       }
+      // Fire-and-forget: the page must revalidate to reflect the removal.
+      pingBreakScreenRevalidate(gone.slug);
       return NextResponse.json({ ok: true, deleted: "hard" });
     }
 
@@ -119,6 +132,8 @@ export async function DELETE(req, ctx) {
     if (!item) {
       return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
     }
+    // Fire-and-forget: archiving removes it from the active set the projector shows.
+    pingBreakScreenRevalidate(item.slug);
     return NextResponse.json({ ok: true, deleted: "archived", item });
   } catch (e) {
     if (e instanceof Response) return e;
