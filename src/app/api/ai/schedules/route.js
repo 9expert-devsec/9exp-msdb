@@ -65,6 +65,65 @@ function maxDate(a, b) {
   return a.getTime() >= b.getTime() ? a : b;
 }
 
+/* ---------------- status param ---------------- */
+// ค่าที่รู้จัก (ตรงกับ enum ใน models/Schedule.js)
+const STATUS_VALUES = ["open", "nearly_full", "full"];
+// DEFAULT เดิม: ไม่ส่ง status มา -> เอาเฉพาะ open + nearly_full (ห้ามเปลี่ยน)
+const DEFAULT_STATUSES = ["open", "nearly_full"];
+
+/**
+ * แปลง ?status= เป็น mongo condition
+ * - ไม่ส่งมาเลย (null) -> ใช้ default เดิม { $in: ["open","nearly_full"] }
+ * - "all"              -> null (ไม่ใส่ filter.status = เอาทุกสถานะ)
+ * - "full" / "open,full" -> { $in: [...] }
+ * - ค่าที่ไม่รู้จัก / ว่าง -> throw StatusParamError (ตอบ 400 ไม่ใช่เงียบ ๆ)
+ *
+ * @returns {{ cond: object|null }}
+ */
+function parseStatusParam(raw) {
+  // absent (ไม่มี key เลย) -> default เดิม
+  if (raw === null || raw === undefined) {
+    return { cond: { $in: DEFAULT_STATUSES } };
+  }
+
+  const value = String(raw).trim();
+
+  // "?status=" ส่ง key มาแต่ว่าง -> ถือว่า malformed (ไม่ fallback เงียบ ๆ)
+  if (!value) {
+    throw new StatusParamError("status must not be empty", []);
+  }
+
+  if (value === "all") return { cond: null };
+
+  const requested = value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (!requested.length) {
+    throw new StatusParamError("status must not be empty", []);
+  }
+
+  // "all" ปนกับค่าอื่น -> ไม่รับ (กำกวม)
+  const invalid = requested.filter((s) => !STATUS_VALUES.includes(s));
+  if (invalid.length) {
+    throw new StatusParamError(
+      `Unknown status value(s): ${invalid.join(", ")}`,
+      invalid,
+    );
+  }
+
+  return { cond: { $in: [...new Set(requested)] } };
+}
+
+class StatusParamError extends Error {
+  constructor(message, invalid) {
+    super(message);
+    this.name = "StatusParamError";
+    this.invalid = invalid;
+  }
+}
+
 export async function GET(req) {
   const authError = checkAiApiKey(req);
   if (authError) return authError;
@@ -96,8 +155,15 @@ export async function GET(req) {
     }
 
     /* ---------------- requirement filters ---------------- */
-    // status: เอาเฉพาะ open + nearly_full (full ไม่เอาอยู่แล้ว)
-    filter.status = { $in: ["open", "nearly_full"] };
+    // status: default = open + nearly_full (เดิม), opt-in ได้ด้วย ?status=
+    //   ?status=all              -> ทุกสถานะ
+    //   ?status=full             -> เฉพาะ full
+    //   ?status=open,full        -> comma-separated
+    //   ค่าที่ไม่รู้จัก           -> 400 (ไม่ปล่อยผ่านเงียบ ๆ)
+    // NOTE: ต้อง assign ตรงตำแหน่งเดิม เพื่อให้ลำดับ key ของ summary.filterUsed
+    //       ตอนไม่ส่ง status มา เหมือนเดิมทุกประการ
+    const statusCond = parseStatusParam(searchParams.get("status")).cond;
+    if (statusCond) filter.status = statusCond;
 
     // signup_url: ต้องไม่ว่าง/ไม่ใช่ช่องว่างล้วน
     filter.signup_url = { $regex: /\S/ };
@@ -185,6 +251,23 @@ export async function GET(req) {
       { status: 200 },
     );
   } catch (err) {
+    // ?status= ที่ไม่ถูกต้อง -> 400 พร้อมบอกค่าที่รับได้ (ไม่ใช่ 500 และไม่เงียบ)
+    if (err instanceof StatusParamError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: err.message,
+          issues: [
+            {
+              path: ["status"],
+              received: err.invalid,
+              expected: [...STATUS_VALUES, "all"],
+            },
+          ],
+        },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
       { ok: false, error: err?.message || "Server error" },
       { status: 500 },
