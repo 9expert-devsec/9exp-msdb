@@ -165,9 +165,6 @@ export async function GET(req) {
     const statusCond = parseStatusParam(searchParams.get("status")).cond;
     if (statusCond) filter.status = statusCond;
 
-    // signup_url: ต้องไม่ว่าง/ไม่ใช่ช่องว่างล้วน
-    filter.signup_url = { $regex: /\S/ };
-
     /* ---------------- date filter (สำคัญ) ----------------
        ต้อง "ไม่เอารอบที่ผ่านไปแล้ว" โดยนิยามว่า:
        - ถ้าวันปัจจุบันเลยวันสุดท้ายของรอบ -> ไม่แสดง
