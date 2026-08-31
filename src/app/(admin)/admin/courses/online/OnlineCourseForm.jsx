@@ -85,10 +85,19 @@ const BulletHint = ({ title }) => (
 );
 
 /* ---------- image upload field ----------
- * Lifted verbatim from the inline Cover Image control so the same markup can
- * serve more than one image field. Only three things vary: the label, the
+ * Serves every image field on this form. Only three things vary: the label, the
  * Cloudinary folder, and the form key it writes through onChange. `uploading`
- * lives per-instance so one field's spinner never appears on another's label. */
+ * lives per-instance so one field's spinner never appears on another's label.
+ *
+ * Two ways in, ONE value: the upload button and the URL box both write the same
+ * form key through onChange, and both read back from `value`. There is no local
+ * copy of the URL, so the box, the thumbnail and เปิดรูป cannot drift apart —
+ * uploading fills the box, pasting lights up the thumbnail, ลบรูป empties both.
+ * The box trims on change, so whitespace-only becomes "" (an explicit clear)
+ * and never undefined, which a save would silently ignore.
+ *
+ * The box uses INPUT_CLS, not `className="input"`: this component is defined
+ * outside OnlineCourseForm, so the styled-jsx `.input` rule does not reach it. */
 const ImageUploadField = ({ label, alt, folder, value, onChange, onZoom }) => {
   const [uploading, setUploading] = useState(false);
 
@@ -150,6 +159,16 @@ const ImageUploadField = ({ label, alt, folder, value, onChange, onZoom }) => {
             </a>
           </>
         )}
+        <div className="flex-1 min-w-0">
+          <input
+            type="text"
+            className={INPUT_CLS}
+            placeholder="หรือวาง URL รูป"
+            aria-label="หรือวาง URL รูป"
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value.trim())}
+          />
+        </div>
       </div>
     </div>
   );
