@@ -640,6 +640,20 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
               </select>
             </div>
 
+            {/* e-Certificate */}
+            <div className="col-span-3">
+              <label className="chk">
+                <input
+                  type="checkbox"
+                  checked={!!form.o_course_certificate_status}
+                  onChange={(e) =>
+                    set("o_course_certificate_status", e.target.checked)
+                  }
+                />{" "}
+                ผ่านเกณฑ์ได้ e-certificate
+              </label>
+            </div>
+
             {/* Instructor name */}
             <div className="col-span-3">
               <FieldLabel>ผู้สอน (ชื่อ)</FieldLabel>
