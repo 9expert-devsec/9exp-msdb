@@ -82,6 +82,77 @@ const BulletHint = ({ title }) => (
   </div>
 );
 
+/* ---------- image upload field ----------
+ * Lifted verbatim from the inline Cover Image control so the same markup can
+ * serve more than one image field. Only three things vary: the label, the
+ * Cloudinary folder, and the form key it writes through onChange. `uploading`
+ * lives per-instance so one field's spinner never appears on another's label. */
+const ImageUploadField = ({ label, alt, folder, value, onChange, onZoom }) => {
+  const [uploading, setUploading] = useState(false);
+
+  const onUpload = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", folder);
+      const res = await fetch("/api/uploads", { method: "POST", body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      onChange(data.url);
+    } catch (e) {
+      alert("Upload failed: " + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <FieldLabel hint={uploading ? "กำลังอัปโหลด..." : ""}>
+        {label}
+      </FieldLabel>
+      <div className="flex items-center gap-3">
+        <label className="cursor-pointer rounded-lg px-3 py-2 bg-white/10 hover:bg-white/20 ring-1 ring-white/10">
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => onUpload(e.target.files?.[0])}
+          />
+          {value ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
+        </label>
+        {value && (
+          <>
+            <img
+              src={value}
+              alt={alt}
+              className="h-12 w-20 rounded-md object-cover ring-1 ring-white/15 cursor-zoom-in"
+              title="คลิกเพื่อดูภาพใหญ่"
+              onClick={() => onZoom(value)}
+            />
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="text-sm px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+            >
+              ลบรูป
+            </button>
+            <a
+              target="_blank"
+              href={value}
+              className="text-sm underline"
+            >
+              เปิดรูป
+            </a>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /* ---------- editor: training topics (with sub-bullets) ---------- */
 function TopicsEditor({ value = [], onChange }) {
   const addTopic = () =>
@@ -269,7 +340,6 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
   const [allCourses, setAllCourses] = useState([]);
 
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState("");
 
   const [form, setForm] = useState(DEFAULT);
@@ -348,25 +418,6 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item]);
-
-  /* ---------- upload ---------- */
-  const onUpload = async (file) => {
-    if (!file) return;
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("folder", "online/covers");
-      const res = await fetch("/api/uploads", { method: "POST", body: fd });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      set("o_course_cover_url", data.url);
-    } catch (e) {
-      alert("Upload failed: " + e.message);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   /* ---------- submit ---------- */
   const onSubmit = async (e) => {
@@ -478,47 +529,14 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
       <Section title="สื่อ & เวลาเรียน & ระดับ & ราคา & ลำดับ">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {/* Cover */}
-          <div>
-            <FieldLabel hint={uploading ? "กำลังอัปโหลด..." : ""}>
-              Cover Image
-            </FieldLabel>
-            <div className="flex items-center gap-3">
-              <label className="cursor-pointer rounded-lg px-3 py-2 bg-white/10 hover:bg-white/20 ring-1 ring-white/10">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => onUpload(e.target.files?.[0])}
-                />
-                {form.o_course_cover_url ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
-              </label>
-              {form.o_course_cover_url && (
-                <>
-                  <img
-                    src={form.o_course_cover_url}
-                    alt="cover"
-                    className="h-12 w-20 rounded-md object-cover ring-1 ring-white/15 cursor-zoom-in"
-                    title="คลิกเพื่อดูภาพใหญ่"
-                    onClick={() => setLightbox(form.o_course_cover_url)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => set("o_course_cover_url", "")}
-                    className="text-sm px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
-                  >
-                    ลบรูป
-                  </button>
-                  <a
-                    target="_blank"
-                    href={form.o_course_cover_url}
-                    className="text-sm underline"
-                  >
-                    เปิดรูป
-                  </a>
-                </>
-              )}
-            </div>
-          </div>
+          <ImageUploadField
+            label="Cover Image"
+            alt="cover"
+            folder="online/covers"
+            value={form.o_course_cover_url}
+            onChange={(url) => set("o_course_cover_url", url)}
+            onZoom={setLightbox}
+          />
 
           <div className="grid grid-cols-3 gap-2">
             {/* Lessons */}
