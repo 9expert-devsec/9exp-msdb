@@ -15,6 +15,12 @@ const OnlineCourseSchema = new mongoose.Schema(
     o_course_cover_url: String,
     o_course_levels: { type: String, default: "1" },
 
+    // ผู้สอน (optional) — ไม่มี default/required โดยตั้งใจ: ถ้าไม่เคยกรอก key จะไม่ถูกสร้าง
+    // ต้องประกาศไว้ที่นี่ เพราะ findByIdAndUpdate ทำงานแบบ strict
+    // ถ้าไม่มีใน schema ฟอร์มจะบันทึกผ่านแต่ค่าจะถูกตัดทิ้งเงียบ ๆ
+    o_course_instructor_name: String,
+    o_course_instructor_image_url: String,
+
     o_course_workshop_status: { type: Boolean, default: false },
     o_course_certificate_status: { type: Boolean, default: false },
     o_course_promote_status: { type: Boolean, default: false },

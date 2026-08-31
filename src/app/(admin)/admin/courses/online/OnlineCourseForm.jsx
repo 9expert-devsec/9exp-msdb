@@ -30,6 +30,8 @@ const DEFAULT = {
   o_course_netprice: null,
   o_course_cover_url: "",
   o_course_levels: "1",
+  o_course_instructor_name: "",
+  o_course_instructor_image_url: "",
   o_course_workshop_status: false,
   o_course_certificate_status: false,
   o_course_promote_status: false,
@@ -438,6 +440,13 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
             : +form.o_course_netprice,
         sort_order: +form.sort_order || 0,
 
+        // ผู้สอน: trim แล้วส่ง "" เสมอเมื่อว่าง — ห้ามส่ง undefined
+        // Mongoose ตัด undefined ออกจาก update ทำให้ค่าเดิมค้าง = ลบไม่ออก
+        o_course_instructor_name: (form.o_course_instructor_name || "").trim(),
+        o_course_instructor_image_url: (
+          form.o_course_instructor_image_url || ""
+        ).trim(),
+
         o_course_objectives: parseLines(form.o_course_objectives),
         o_course_target_audience: parseLines(form.o_course_target_audience),
         o_course_prerequisites: parseLines(form.o_course_prerequisites),
@@ -629,6 +638,31 @@ export default function OnlineCourseForm({ item = {}, onSaved }) {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Instructor name */}
+            <div className="col-span-3">
+              <FieldLabel>ผู้สอน (ชื่อ)</FieldLabel>
+              <input
+                className="input"
+                placeholder="เช่น อาจารย์สมชาย ใจดี"
+                value={form.o_course_instructor_name}
+                onChange={(e) =>
+                  set("o_course_instructor_name", e.target.value)
+                }
+              />
+            </div>
+
+            {/* Instructor photo */}
+            <div className="col-span-3">
+              <ImageUploadField
+                label="รูปผู้สอน"
+                alt="instructor"
+                folder="online/instructors"
+                value={form.o_course_instructor_image_url}
+                onChange={(url) => set("o_course_instructor_image_url", url)}
+                onZoom={setLightbox}
+              />
             </div>
 
             {/* Price & NetPrice */}
