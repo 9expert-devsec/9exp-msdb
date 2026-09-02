@@ -166,13 +166,19 @@ export async function GET(req) {
     if (statusCond) filter.status = statusCond;
 
     /* ---------------- date filter (สำคัญ) ----------------
-       ต้อง "ไม่เอารอบที่ผ่านไปแล้ว" โดยนิยามว่า:
+       DEFAULT คือ "ไม่เอารอบที่ผ่านไปแล้ว" โดยนิยามว่า:
        - ถ้าวันปัจจุบันเลยวันสุดท้ายของรอบ -> ไม่แสดง
        ทำได้ด้วย: dates มีอย่างน้อย 1 วันที่ >= วันนี้ 00:00Z
+       แต่เป็นแค่ค่า default เมื่อ caller ไม่ได้ระบุขอบล่างมาเอง
+       (ถ้าส่ง from มา -> ใช้ตามที่ขอ ดูคอมเมนต์ในสาขา from/to)
+       NOTE: สาขา date= ยังบังคับ today อยู่ (แก้ในคอมมิตถัดไป)
     */
     const today = utcStartOfToday();
 
     const hasDateFilter = !!(dateStr || fromStr || toStr || monthsParam);
+
+    // ช่วงวันที่ที่เป็นไปไม่ได้ (from > to) -> ตอบว่างแบบตั้งใจ ไม่ต้องยิง DB
+    let emptyRange = false;
 
     if (hasDateFilter) {
       if (dateStr) {
@@ -190,8 +196,22 @@ export async function GET(req) {
       } else if (fromStr || toStr) {
         const cond = {};
 
-        if (fromStr) cond.$gte = maxDate(utcMidnight(fromStr), today);
-        else cond.$gte = today; // ไม่ส่ง from มา ก็ยังกันอดีตอยู่ดี
+        // `from` ใช้ตามที่ caller ส่งมาเป๊ะ ๆ ห้าม clamp
+        //
+        // เดิมบรรทัดนี้คือ maxDate(utcMidnight(fromStr), today) มาจาก 72fd700
+        // ("update api filter shedule", 2026-01-30) ซึ่งใส่ฟิลเตอร์ที่ไม่ได้
+        // ประกาศไว้ในสัญญา API มาพร้อมกันหลายตัว (status, signup_url) เพื่อซ่อน
+        // รอบที่จบไปแล้ว ผลคือมันเขียนช่วงวันที่ของ caller ทิ้งแบบเงียบ ๆ:
+        // from=2026-08-01&to=2026-08-31 กลายเป็น
+        // {$gte: <today>, $lt: 2026-09-01} ซึ่งเป็นช่วงที่เป็นไปไม่ได้ คืน 0 แถว
+        // และทำให้อ่านรอบย้อนหลังผ่าน API นี้ไม่ได้เลย
+        //
+        // ฟิลเตอร์ตัวอื่นในชุดเดียวกันถูกถอนไปแล้วด้วยเหตุผลเดียวกัน:
+        // b255381 เปลี่ยน status เป็น opt-in ?status= และ c5c8a3c ถอด
+        // signup_url ออก บรรทัดนี้เดินตามแนวเดิม: `today` เป็นแค่ค่า DEFAULT
+        // ตอนที่ไม่ได้ส่ง from มา ไม่ใช่เพดานที่ไปทับสิ่งที่ caller ขอ
+        if (fromStr) cond.$gte = utcMidnight(fromStr);
+        else cond.$gte = today; // ไม่ส่ง from มา ก็ยังกันอดีตอยู่ดี (default)
 
         if (toStr) {
           // inclusive ทั้งวัน -> next day 00:00Z แล้วใช้ $lt
@@ -201,6 +221,16 @@ export async function GET(req) {
           cond.$lt = toEnd;
         }
 
+        // from > to: ตอนนี้เกิดได้เฉพาะเมื่อ caller ขอมาแบบนั้นจริง ๆ
+        // (ไม่มีการแทนค่าอะไรให้แล้ว) -> ตอบว่างแบบตั้งใจ ไม่ยิง query ที่
+        // ยังไงก็ไม่มีทาง match
+        if (cond.$lt && cond.$gte >= cond.$lt) emptyRange = true;
+
+        // NOTE (known unbounded case): `to` ไม่บังคับ และ endpoint นี้ไม่มี
+        // limit/pagination เลย ดังนั้น from ย้อนหลังไกล ๆ โดยไม่ส่ง to จะคืน
+        // ประวัติทั้งหมดในครั้งเดียว วัดเมื่อ 2026-09-02: worst case 265 แถว
+        // ~199 KiB (status=all) ยังรับได้ที่ปริมาณข้อมูลเท่านี้
+        // ถ้า collection โตกว่านี้มากค่อยกลับมาทบทวนเรื่อง cap/pagination
         filter.dates = { $elemMatch: cond };
       } else {
         // months: วันนี้ -> n เดือนข้างหน้า
@@ -221,19 +251,21 @@ export async function GET(req) {
       filter.dates = { $elemMatch: { $gte: today } };
     }
 
-    const items = await Schedule.find(filter)
-      .populate({
-        path: "course",
-        select:
-          "course_id course_name course_price course_trainingdays program sort_order skills",
-        populate: {
-          path: "program",
-          select: "program_id program_name programiconurl sort_order",
-        },
-      })
-      // เรียงใกล้วันเริ่มก่อน (ถ้าคุณเก็บ dates[0] เป็นวันเริ่ม)
-      .sort({ "dates.0": 1, "course.sort_order": 1, "course.course_name": 1 })
-      .lean();
+    const items = emptyRange
+      ? []
+      : await Schedule.find(filter)
+          .populate({
+            path: "course",
+            select:
+              "course_id course_name course_price course_trainingdays program sort_order skills",
+            populate: {
+              path: "program",
+              select: "program_id program_name programiconurl sort_order",
+            },
+          })
+          // เรียงใกล้วันเริ่มก่อน (ถ้าคุณเก็บ dates[0] เป็นวันเริ่ม)
+          .sort({ "dates.0": 1, "course.sort_order": 1, "course.course_name": 1 })
+          .lean();
 
     return NextResponse.json(
       {
