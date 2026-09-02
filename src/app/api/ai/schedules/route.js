@@ -58,13 +58,6 @@ function utcStartOfToday() {
   );
 }
 
-// helper: max date
-function maxDate(a, b) {
-  if (!a) return b;
-  if (!b) return a;
-  return a.getTime() >= b.getTime() ? a : b;
-}
-
 /* ---------------- status param ---------------- */
 // ค่าที่รู้จัก (ตรงกับ enum ใน models/Schedule.js)
 const STATUS_VALUES = ["open", "nearly_full", "full"];
@@ -170,8 +163,7 @@ export async function GET(req) {
        - ถ้าวันปัจจุบันเลยวันสุดท้ายของรอบ -> ไม่แสดง
        ทำได้ด้วย: dates มีอย่างน้อย 1 วันที่ >= วันนี้ 00:00Z
        แต่เป็นแค่ค่า default เมื่อ caller ไม่ได้ระบุขอบล่างมาเอง
-       (ถ้าส่ง from มา -> ใช้ตามที่ขอ ดูคอมเมนต์ในสาขา from/to)
-       NOTE: สาขา date= ยังบังคับ today อยู่ (แก้ในคอมมิตถัดไป)
+       (ถ้าส่ง from หรือ date มา -> ใช้ตามที่ขอ ไม่มีการ clamp)
     */
     const today = utcStartOfToday();
 
@@ -182,16 +174,19 @@ export async function GET(req) {
 
     if (hasDateFilter) {
       if (dateStr) {
-        // ระบุวันเดียว: [day 00:00Z, next day 00:00Z)
-        // แต่ยังต้องไม่น้อยกว่าวันนี้ (กันขอดึงย้อนหลัง)
-        const startRaw = utcMidnight(dateStr);
-        const start = maxDate(startRaw, today);
+        // ระบุวันเดียว: [day 00:00Z, next day 00:00Z) ใช้ตามที่ caller ขอ
+        //
+        // เดิม start ถูกดันขึ้นเป็น today ด้วย maxDate(startRaw, today) ซึ่งมา
+        // จาก 72fd700 ชุดเดียวกับ from (ดูคอมเมนต์ในสาขา from/to) ผลคือ ?date=
+        // ที่เป็นอดีตจะได้ start >= end เสมอ -> คืน 0 แถวทุกครั้ง ไม่ใช่เพราะ
+        // ไม่มีข้อมูล แต่เพราะช่วงที่สร้างขึ้นมาเป็นไปไม่ได้
+        // ถอดออกด้วยเหตุผลเดียวกับ from: today เป็นค่า default ได้
+        // แต่ต้องไม่ไปทับวันที่ที่ caller ระบุมาเอง
+        const start = utcMidnight(dateStr);
 
-        const end = new Date(utcMidnight(dateStr));
+        const end = new Date(start);
         end.setUTCDate(end.getUTCDate() + 1);
 
-        // ถ้าระบุ date ที่เป็นอดีตหมด -> start จะถูกดันเป็น today
-        // และ start อาจ >= end => จะไม่มีผลลัพธ์ (ถูกต้องตาม requirement)
         filter.dates = { $elemMatch: { $gte: start, $lt: end } };
       } else if (fromStr || toStr) {
         const cond = {};
