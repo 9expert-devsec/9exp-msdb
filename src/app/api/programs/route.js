@@ -2,6 +2,7 @@ import dbConnect from "@/lib/mongoose";
 import Program from "@/models/Program";
 import PublicCourse from "@/models/PublicCourse";
 import OnlineCourse from "@/models/OnlineCourse";
+import { requireRole } from "@/lib/requireRole";
 
 export const dynamic = "force-dynamic";
 
@@ -42,8 +43,14 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  await dbConnect();
-  const body = await req.json();
-  const created = await Program.create(body);
-  return new Response(JSON.stringify({ item: created }), { status: 201 });
+  try {
+    await requireRole(req, ["admin", "editor"]);
+    await dbConnect();
+    const body = await req.json();
+    const created = await Program.create(body);
+    return new Response(JSON.stringify({ item: created }), { status: 201 });
+  } catch (e) {
+    if (e instanceof Response) return e;
+    throw e;
+  }
 }
