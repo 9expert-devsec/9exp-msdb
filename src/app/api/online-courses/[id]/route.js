@@ -3,6 +3,7 @@ import dbConnect from "@/lib/mongoose";
 import OnlineCourse from "@/models/OnlineCourse";
 
 import { withCors } from "@/lib/cors";
+import { requireRole } from "@/lib/requireRole";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ export const GET = withCors(async (req, { params }) => {
 /* ---------- PATCH ---------- */
 export const PATCH = withCors(async (req, { params }) => {
   try {
+    await requireRole(req, ["admin", "editor"]);
     const { id } = await params;
     await dbConnect();
     const body = await req.json();
@@ -68,6 +70,7 @@ export const PATCH = withCors(async (req, { params }) => {
 
     return NextResponse.json({ ok: true, item: updated });
   } catch (e) {
+    if (e instanceof Response) return e;
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
   }
 });
@@ -75,11 +78,13 @@ export const PATCH = withCors(async (req, { params }) => {
 /* ---------- DELETE ---------- */
 export const DELETE = withCors(async (req, { params }) => {
   try {
+    await requireRole(req, ["admin"]);
     const { id } = await params;
     await dbConnect();
     await OnlineCourse.findByIdAndDelete(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
+    if (e instanceof Response) return e;
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
   }
 });
