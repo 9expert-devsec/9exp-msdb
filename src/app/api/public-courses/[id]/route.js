@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongoose";
 import PublicCourse from "@/models/PublicCourse";
 import { shapePublicCourseForExternal } from "@/lib/shapeCourseForExternal";
+import { requireRole } from "@/lib/requireRole";
 
 const cleanArray = (a) =>
   Array.isArray(a) ? a.map((s) => String(s).trim()).filter(Boolean) : [];
@@ -42,6 +43,7 @@ export async function GET(req, { params }) {
 
 export async function PATCH(req, { params }) {
   try {
+    await requireRole(req, ["admin", "editor"]);
     await dbConnect();
     const id = await getId(params);
     const payload = await req.json();
@@ -84,6 +86,7 @@ export async function PATCH(req, { params }) {
     }
     return NextResponse.json({ ok: true, item: shapePublicCourseForExternal(item) });
   } catch (e) {
+    if (e instanceof Response) return e;
     return NextResponse.json(
       { ok: false, error: e.message || "Update failed" },
       { status: 400 }
@@ -93,6 +96,7 @@ export async function PATCH(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
+    await requireRole(req, ["admin"]);
     await dbConnect();
     const id = await getId(params);
     const item = await PublicCourse.findByIdAndDelete(id).lean();
@@ -101,6 +105,7 @@ export async function DELETE(req, { params }) {
     }
     return NextResponse.json({ ok: true, deleted: true });
   } catch (e) {
+    if (e instanceof Response) return e;
     return NextResponse.json(
       { ok: false, error: e.message || "Delete failed" },
       { status: 400 }
