@@ -5,6 +5,7 @@ import Skill from "@/models/Skill";
 import Program from "@/models/Program";
 import PublicCourse from "@/models/PublicCourse";
 import OnlineCourse from "@/models/OnlineCourse";
+import { requireRole } from "@/lib/requireRole";
 
 export const dynamic = "force-dynamic";
 
@@ -38,8 +39,9 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  await dbConnect();
   try {
+    await requireRole(req, ["admin", "editor"]);
+    await dbConnect();
     const payload = await req.json();
 
     // รับเฉพาะฟิลด์ของ skill
@@ -55,6 +57,7 @@ export async function POST(req) {
     const item = await Skill.create(doc);
     return Response.json({ item }, { status: 201 });
   } catch (err) {
+    if (err instanceof Response) return err;
     return Response.json(
       { error: err.message || "Failed to create skill" },
       { status: 400 }
