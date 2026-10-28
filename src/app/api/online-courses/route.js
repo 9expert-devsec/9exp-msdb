@@ -6,6 +6,7 @@ import "@/models/Skill";
 
 import { withCors } from "@/lib/cors";
 import { withRateLimit } from "@/lib/ratelimit";
+import { requireRole } from "@/lib/requireRole";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,7 @@ export const GET = withCors(
 /* ---------------- POST (create) ---------------- */
 export const POST = withCors(async (req) => {
   try {
+    await requireRole(req, ["admin", "editor"]);
     await dbConnect();
     const body = await req.json();
 
@@ -134,6 +136,7 @@ export const POST = withCors(async (req) => {
     const created = await OnlineCourse.create(payload);
     return NextResponse.json({ ok: true, item: created }, { status: 201 });
   } catch (e) {
+    if (e instanceof Response) return e;
     if (e?.code === 11000 && e?.keyPattern?.o_course_id) {
       return NextResponse.json(
         {
