@@ -60,7 +60,7 @@ function utcStartOfToday() {
 
 /* ---------------- status param ---------------- */
 // ค่าที่รู้จัก (ตรงกับ enum ใน models/Schedule.js)
-const STATUS_VALUES = ["open", "nearly_full", "full"];
+const STATUS_VALUES = ["open", "nearly_full", "full", "closed"];
 // DEFAULT เดิม: ไม่ส่ง status มา -> เอาเฉพาะ open + nearly_full (ห้ามเปลี่ยน)
 const DEFAULT_STATUSES = ["open", "nearly_full"];
 
@@ -326,7 +326,7 @@ export async function POST(req) {
     const payload = {
       course: body.course,
       dates,
-      status: ["open", "nearly_full", "full"].includes(body.status)
+      status: STATUS_VALUES.includes(body.status)
         ? body.status
         : "open",
       type: ["classroom", "hybrid"].includes(body.type)

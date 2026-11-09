@@ -9,7 +9,8 @@ const ScheduleSchema = new Schema(
     dates: { type: [Date], required: true, validate: v => v.length > 0 },
 
     // สถานะรอบ
-    status: { type: String, enum: ["open", "nearly_full", "full"], default: "open" },
+    // closed = ยกเลิกรอบ (ไม่แสดงใน public/default reads; ดูได้ผ่าน /api/ai/schedules?status=all)
+    status: { type: String, enum: ["open", "nearly_full", "full", "closed"], default: "open" },
 
     // ประเภทการอบรม: classroom / hybrid
     type: { type: String, enum: ["classroom", "hybrid"], default: "classroom" },

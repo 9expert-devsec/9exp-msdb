@@ -280,6 +280,7 @@ export default function EditSchedulePage() {
                 <option value="open">เปิดรับสมัคร</option>
                 <option value="nearly_full">ใกล้เต็ม</option>
                 <option value="full">เต็ม</option>
+                <option value="closed">ยกเลิก</option>
               </select>
             </div>
 

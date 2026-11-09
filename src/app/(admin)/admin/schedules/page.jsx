@@ -425,7 +425,9 @@ function MonthCell({ month, schedules }) {
 
         // สีป้ายสถานะ
         const statusClass =
-          s.status === "full"
+          s.status === "closed"
+            ? "bg-slate-100 text-slate-500 ring-1 ring-slate-200"
+            : s.status === "full"
             ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
             : s.status === "nearly_full"
               ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
@@ -446,7 +448,9 @@ function MonthCell({ month, schedules }) {
                 ? "สมัคร"
                 : s.status === "nearly_full"
                   ? "ใกล้เต็ม"
-                  : "เต็ม"}
+                  : s.status === "closed"
+                    ? "ยกเลิก"
+                    : "เต็ม"}
             </span>
           </>
         );

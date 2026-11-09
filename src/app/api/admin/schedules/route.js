@@ -63,7 +63,7 @@ const SignupUrlSchema = z.preprocess((val) => {
 const CreateSchema = z.object({
   course: z.string().min(1),
   dates: z.array(z.coerce.date()).min(1),
-  status: z.enum(["open", "nearly_full", "full"]).default("open"),
+  status: z.enum(["open", "nearly_full", "full", "closed"]).default("open"),
   type: z.enum(["classroom", "hybrid"]).default("classroom"),
   signup_url: SignupUrlSchema.default(""),
 });

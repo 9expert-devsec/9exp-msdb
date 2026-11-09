@@ -9,6 +9,7 @@ const STATUS_OPTS = [
   { value: "open",        label: "เปิดรับสมัคร" },
   { value: "nearly_full", label: "ใกล้เต็ม" },
   { value: "full",        label: "เต็ม" },
+  { value: "closed",      label: "ยกเลิก" },
 ];
 
 const TYPE_OPTS = [

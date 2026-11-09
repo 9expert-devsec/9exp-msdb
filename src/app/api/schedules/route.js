@@ -19,6 +19,10 @@ export async function GET(req) {
     const filter = {};
     if (course) filter.course = course;
 
+    // public endpoint (ไม่มี auth): ห้ามคืนรอบที่ยกเลิก (closed)
+    // ใช้ $ne เพื่อให้สถานะอื่น ๆ (open / nearly_full / full) ออกเหมือนเดิมทุกประการ
+    filter.status = { $ne: "closed" };
+
     // ดึงรอบในช่วง 12 เดือนถัดไป (หรือค่าที่ส่งมา)
     const now = new Date();
     const until = new Date(now);

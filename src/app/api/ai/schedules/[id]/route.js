@@ -50,7 +50,10 @@ export async function PUT(req, { params }) {
     const body = await req.json();
 
     const update = {};
-    if (body.status && ["open", "nearly_full", "full"].includes(body.status)) {
+    if (
+      body.status &&
+      ["open", "nearly_full", "full", "closed"].includes(body.status)
+    ) {
       update.status = body.status;
     }
     if (body.type && ["classroom", "hybrid"].includes(body.type)) {
